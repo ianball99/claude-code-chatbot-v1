@@ -75,6 +75,11 @@ const CORS = {
 const UPLOAD_TOOLS = new Set(["upload_background_image", "upload_document"]);
 
 const TOOLS = [
+  // Anthropic built-in web search — executed server-side, no external API key needed
+  {
+    type: "web_search_20250305",
+    name: "web_search",
+  },
   {
     name: "list_itineraries",
     description: "List all Vamoos itineraries (also called trips) for the operator. Use this when the user asks to list, show, or browse their trips or itineraries. Returns a summary including reference codes, dates, and vamoos_ids.",
@@ -195,6 +200,7 @@ export const handler = async (event) => {
     "Content-Type": "application/json",
     "x-api-key": apiKey,
     "anthropic-version": "2023-06-01",
+    "anthropic-beta": "web-search-2025-03-05",
   };
 
   try {
@@ -262,9 +268,11 @@ export const handler = async (event) => {
       }
 
       // Non-upload tool — execute via MCP server
+      // web_search blocks are handled server-side by Anthropic; skip them here
       const toolResults = [];
       for (const block of data.content) {
         if (block.type !== "tool_use") continue;
+        if (block.type === "web_search_20250305" || block.name === "web_search") continue;
         const result = mcpUrl
           ? await callMcpTool(mcpUrl, block.name, block.input)
           : JSON.stringify({ error: "MCP_SERVER_URL not configured" });
