@@ -373,7 +373,16 @@ export default function App() {
     } else {
       // Normal final response
       const { text: replyText, toolCalls } = data;
-      setApiHistory([...history, { role: "assistant", content: replyText }]);
+      // When resuming after a client-side upload, `history` ends with the assistant's tool_use message.
+      // The tool_result must be inserted between that and the final reply so the history stays valid.
+      const fullHistory = resumeToolResult
+        ? [
+            ...history,
+            { role: "user", content: [{ type: "tool_result", tool_use_id: resumeToolResult.tool_use_id, content: resumeToolResult.content }] },
+            { role: "assistant", content: replyText },
+          ]
+        : [...history, { role: "assistant", content: replyText }];
+      setApiHistory(fullHistory);
       setMessages((prev) => {
         // If the last message was a tool call card (from pendingUpload), append text to it
         const last = prev[prev.length - 1];
