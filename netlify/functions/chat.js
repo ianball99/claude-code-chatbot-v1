@@ -1,6 +1,6 @@
 // netlify/functions/chat.js
-// Discovers tools from the MCP server at startup, passes them to Claude
-// as regular tools, and handles the tool-use loop by calling the MCP server.
+// Tools are hardcoded (matching the Worker) to avoid tools/list round-trip.
+// Tool execution calls the MCP server via JSON-RPC with SSE stream reading.
 //
 // Env vars required:
 //   ANTHROPIC_API_KEY  — Anthropic API key
@@ -15,6 +15,76 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+// Tool definitions matching the Worker exactly — avoids tools/list round-trip
+const TOOLS = [
+  {
+    name: "create_itinerary",
+    description: "Create a new Vamoos trip/itinerary. The reference_code is shown as the Passcode in the app.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference_code: { type: "string", description: "Unique reference code shown as the Passcode in the app (e.g. SmithRome25)" },
+        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
+        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
+        field1: { type: "string", description: "Destination / Event Title (optional)" },
+        field3: { type: "string", description: "Name / Location (optional)" },
+      },
+      required: ["reference_code", "departure_date", "return_date"],
+    },
+  },
+  {
+    name: "update_itinerary",
+    description: "Update an existing Vamoos trip/itinerary. Requires the vamoos_id which stays constant across updates.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary to update" },
+        vamoos_id: { type: "number", description: "The vamoos_id of the itinerary — stays constant across all updates" },
+        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
+        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
+        field1: { type: "string", description: "Destination / Event Title (optional)" },
+        field3: { type: "string", description: "Name / Location (optional)" },
+      },
+      required: ["reference_code", "vamoos_id", "departure_date", "return_date"],
+    },
+  },
+  {
+    name: "upload_background_image",
+    description: "Upload a background image to a Vamoos itinerary. Provide the file as base64-encoded data.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
+        vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
+        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
+        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
+        file_data: { type: "string", description: "Base64-encoded image file data" },
+        filename: { type: "string", description: "Filename including extension (e.g. background.jpg)" },
+        content_type: { type: "string", description: "MIME type (e.g. image/jpeg, image/png)" },
+      },
+      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "file_data", "filename", "content_type"],
+    },
+  },
+  {
+    name: "upload_document",
+    description: "Upload a document to a Vamoos itinerary's travel documents. Provide the file as base64-encoded data.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
+        vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
+        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
+        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
+        file_data: { type: "string", description: "Base64-encoded document file data" },
+        filename: { type: "string", description: "Filename including extension (e.g. itinerary.pdf)" },
+        content_type: { type: "string", description: "MIME type (e.g. application/pdf)" },
+        document_name: { type: "string", description: "Display name shown in the app (e.g. Travel Itinerary)" },
+      },
+      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "file_data", "filename", "content_type", "document_name"],
+    },
+  },
+];
 
 export const handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
@@ -43,19 +113,6 @@ export const handler = async (event) => {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "messages array required" }) };
   }
 
-  // Discover tools from the MCP server
-  let tools = [];
-  let mcpSession = null;
-  if (mcpUrl) {
-    try {
-      const { tools: discovered, sessionId } = await discoverMcpTools(mcpUrl);
-      tools = discovered;
-      mcpSession = sessionId;
-    } catch (e) {
-      console.warn("MCP tool discovery failed:", e.message);
-    }
-  }
-
   const claudeHeaders = {
     "Content-Type": "application/json",
     "x-api-key": apiKey,
@@ -67,18 +124,16 @@ export const handler = async (event) => {
     const toolCalls = [];
 
     while (true) {
-      const requestBody = {
-        model: MODEL,
-        max_tokens: 4096,
-        system: SYSTEM,
-        messages: currentMessages,
-        ...(tools.length > 0 ? { tools } : {}),
-      };
-
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: claudeHeaders,
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 4096,
+          system: SYSTEM,
+          tools: TOOLS,
+          messages: currentMessages,
+        }),
       });
 
       const data = await res.json();
@@ -103,7 +158,6 @@ export const handler = async (event) => {
         };
       }
 
-      // Handle tool_use — call the MCP server for each
       currentMessages = [...currentMessages, { role: "assistant", content: data.content }];
       const toolResults = [];
 
@@ -111,8 +165,8 @@ export const handler = async (event) => {
         if (block.type !== "tool_use") continue;
 
         const result = mcpUrl
-          ? await callMcpTool(mcpUrl, block.name, block.input, mcpSession)
-          : JSON.stringify({ error: "No MCP server configured" });
+          ? await callMcpTool(mcpUrl, block.name, block.input)
+          : JSON.stringify({ error: "MCP_SERVER_URL not configured" });
 
         toolCalls.push({ name: block.name, input: block.input, result });
         toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
@@ -129,83 +183,49 @@ export const handler = async (event) => {
   }
 };
 
-// Initialize an MCP session and return tool definitions + session ID
-async function discoverMcpTools(mcpUrl) {
-  const initRes = await fetch(mcpUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-      params: {
-        protocolVersion: "2024-11-05",
-        capabilities: {},
-        clientInfo: { name: "claude-chatbot-v1", version: "1.0" },
-      },
-    }),
-  });
-
-  const sessionId = initRes.headers.get("mcp-session-id");
-  await parseResponse(initRes);
-
-  // Send initialized notification
-  const notifHeaders = { "Content-Type": "application/json" };
-  if (sessionId) notifHeaders["mcp-session-id"] = sessionId;
-  await fetch(mcpUrl, {
-    method: "POST",
-    headers: notifHeaders,
-    body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
-  });
-
-  // List tools
-  const listHeaders = { "Content-Type": "application/json", Accept: "application/json, text/event-stream" };
-  if (sessionId) listHeaders["mcp-session-id"] = sessionId;
-  const listRes = await fetch(mcpUrl, {
-    method: "POST",
-    headers: listHeaders,
-    body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }),
-  });
-
-  const listData = await parseResponse(listRes);
-  const mcpTools = listData?.result?.tools || [];
-
-  // Convert MCP tool format → Anthropic tool format
-  const tools = mcpTools.map((t) => ({
-    name: t.name,
-    description: t.description,
-    input_schema: t.inputSchema || { type: "object", properties: {} },
-  }));
-
-  return { tools, sessionId };
-}
-
-// Call a specific tool on the MCP server
-async function callMcpTool(mcpUrl, toolName, toolInput, sessionId) {
+// Call a tool on the MCP server via JSON-RPC.
+// Reads the SSE stream line-by-line and stops after the first data event.
+async function callMcpTool(mcpUrl, toolName, toolInput) {
   try {
-    // If no session yet, initialize one
-    let sid = sessionId;
-    if (!sid) {
-      const { sessionId: newSid } = await discoverMcpTools(mcpUrl);
-      sid = newSid;
-    }
+    // Initialize session
+    const initRes = await fetch(mcpUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+      body: JSON.stringify({
+        jsonrpc: "2.0", id: 1, method: "initialize",
+        params: {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "claude-chatbot-v1", version: "1.0" },
+        },
+      }),
+    });
+    const sessionId = initRes.headers.get("mcp-session-id");
+    await readFirstSseData(initRes);
 
+    // Send initialized notification (fire and forget)
+    const notifHeaders = { "Content-Type": "application/json" };
+    if (sessionId) notifHeaders["mcp-session-id"] = sessionId;
+    fetch(mcpUrl, {
+      method: "POST",
+      headers: notifHeaders,
+      body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+    }).catch(() => {});
+
+    // Call the tool
     const toolHeaders = { "Content-Type": "application/json", Accept: "application/json, text/event-stream" };
-    if (sid) toolHeaders["mcp-session-id"] = sid;
+    if (sessionId) toolHeaders["mcp-session-id"] = sessionId;
 
     const toolRes = await fetch(mcpUrl, {
       method: "POST",
       headers: toolHeaders,
       body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 3,
-        method: "tools/call",
+        jsonrpc: "2.0", id: 2, method: "tools/call",
         params: { name: toolName, arguments: toolInput },
       }),
     });
 
-    const toolData = await parseResponse(toolRes);
-
+    const toolData = await readFirstSseData(toolRes);
     if (toolData?.result?.content) {
       return toolData.result.content
         .map((c) => (c.type === "text" ? c.text : JSON.stringify(c)))
@@ -219,17 +239,40 @@ async function callMcpTool(mcpUrl, toolName, toolInput, sessionId) {
   }
 }
 
-// Parse JSON or SSE response from the MCP server
-async function parseResponse(res) {
+// Read an SSE or JSON response — stops reading after the first data event
+// to avoid hanging on a long-lived SSE stream.
+async function readFirstSseData(res) {
   const ct = res.headers.get("content-type") || "";
-  const text = await res.text();
-  if (ct.includes("text/event-stream")) {
-    for (const line of text.split("\n")) {
-      if (line.startsWith("data: ")) {
-        try { return JSON.parse(line.slice(6)); } catch {}
+
+  if (!ct.includes("text/event-stream")) {
+    // Plain JSON response
+    try { return await res.json(); } catch { return null; }
+  }
+
+  // SSE — read line by line via the stream reader, stop on first data: line
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop(); // keep incomplete last line
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            const parsed = JSON.parse(line.slice(6));
+            reader.cancel(); // stop reading — we have what we need
+            return parsed;
+          } catch {}
+        }
       }
     }
-    return null;
+  } finally {
+    reader.cancel().catch(() => {});
   }
-  try { return JSON.parse(text); } catch { return null; }
+  return null;
 }
