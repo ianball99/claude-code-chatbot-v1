@@ -271,9 +271,13 @@ export default function App() {
     if (taRef.current) taRef.current.style.height = "auto";
 
     const contentParts = [];
-    images.forEach((img) =>
-      contentParts.push({ type: "image", source: { type: "base64", media_type: img.type, data: img.base64 } })
-    );
+    images.forEach((img) => {
+      if (img.isImage) {
+        contentParts.push({ type: "image", source: { type: "base64", media_type: img.type, data: img.base64 } });
+      } else {
+        contentParts.push({ type: "text", text: `[Attached file: ${img.name} (${img.type})]` });
+      }
+    });
     if (userText) contentParts.push({ type: "text", text: userText });
 
     setMessages((prev) => [...prev, { role: "user", text: userText, images }]);
@@ -352,11 +356,10 @@ export default function App() {
 
   const handleFiles = (files) => {
     Array.from(files).forEach((file) => {
-      if (!file.type.startsWith("image/")) return;
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target.result;
-        setPending((p) => [...p, { dataUrl, base64: dataUrl.split(",")[1], type: file.type, name: file.name }]);
+        setPending((p) => [...p, { dataUrl, base64: dataUrl.split(",")[1], type: file.type, name: file.name, isImage: file.type.startsWith("image/") }]);
       };
       reader.readAsDataURL(file);
     });
@@ -508,8 +511,18 @@ export default function App() {
                   position: "relative", width: 56, height: 56,
                   borderRadius: 8, overflow: "hidden",
                   border: "1px solid rgba(212,175,55,0.3)",
+                  background: "rgba(0,0,0,0.3)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                  <img src={img.dataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  {img.isImage
+                    ? <img src={img.dataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : <div style={{ textAlign: "center", padding: 4 }}>
+                        <div style={{ fontSize: 20 }}>📄</div>
+                        <div style={{ fontSize: 8, color: "rgba(255,255,255,0.6)", wordBreak: "break-all", lineHeight: 1.2 }}>
+                          {img.name.split(".").pop().toUpperCase()}
+                        </div>
+                      </div>
+                  }
                   <button onClick={() => setPending((p) => p.filter((_, j) => j !== i))} style={{
                     position: "absolute", top: 2, right: 2, width: 16, height: 16,
                     background: "rgba(0,0,0,0.7)", border: "none", borderRadius: "50%",
@@ -541,7 +554,7 @@ export default function App() {
             </label>
 
             <textarea ref={taRef} rows={1}
-              placeholder="Ask about your itineraries, or attach an image to upload…"
+              placeholder="Ask about your itineraries, or attach an image or document to upload…"
               value={input} disabled={loading}
               onChange={(e) => {
                 setInput(e.target.value);
