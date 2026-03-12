@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 
 const CHAT_FN = "/.netlify/functions/chat";
+const WORKER_URL_KEY = "vamoos_worker_url";
+const DEFAULT_WORKER_URL = "https://vamoos-mcp-server.ianball99.workers.dev";
 
 const css = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=DM+Mono:wght@300;400&display=swap');
@@ -13,6 +15,7 @@ html, body { height: 100%; background: #0d0d0d; }
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.2); border-radius: 2px; }
 textarea::-webkit-scrollbar { display: none; }
+input::-webkit-scrollbar { display: none; }
 `;
 
 const SUGGESTIONS = [
@@ -26,13 +29,10 @@ function ThinkingDots() {
   return (
     <div style={{ display: "flex", gap: 5 }}>
       {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          style={{
-            width: 7, height: 7, borderRadius: "50%", background: "#d4af37",
-            animation: `bop 1.2s ease-in-out ${i * 0.2}s infinite`,
-          }}
-        />
+        <div key={i} style={{
+          width: 7, height: 7, borderRadius: "50%", background: "#d4af37",
+          animation: `bop 1.2s ease-in-out ${i * 0.2}s infinite`,
+        }} />
       ))}
     </div>
   );
@@ -41,6 +41,7 @@ function ThinkingDots() {
 function ToolCallCard({ tc }) {
   const [open, setOpen] = useState(false);
   const isErr = typeof tc.result === "string" && (tc.result.startsWith("Error") || tc.result.startsWith("MCP error"));
+  const isPending = tc.result === "uploading…";
   return (
     <div style={{
       margin: "6px 0", padding: "8px 12px", borderRadius: 10,
@@ -52,41 +53,43 @@ function ToolCallCard({ tc }) {
         <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "#d4af37" }}>{tc.name}</span>
         <span style={{
           marginLeft: "auto", fontFamily: "'DM Mono',monospace", fontSize: 9,
-          color: isErr ? "#ef5350" : "#4caf50", padding: "2px 8px", borderRadius: 10,
-          background: isErr ? "rgba(220,80,80,0.1)" : "rgba(76,175,80,0.1)",
-          border: `1px solid ${isErr ? "rgba(220,80,80,0.2)" : "rgba(76,175,80,0.2)"}`,
+          color: isPending ? "#d4af37" : isErr ? "#ef5350" : "#4caf50",
+          padding: "2px 8px", borderRadius: 10,
+          background: isPending ? "rgba(212,175,55,0.1)" : isErr ? "rgba(220,80,80,0.1)" : "rgba(76,175,80,0.1)",
+          border: `1px solid ${isPending ? "rgba(212,175,55,0.2)" : isErr ? "rgba(220,80,80,0.2)" : "rgba(76,175,80,0.2)"}`,
         }}>
-          {isErr ? "✗ error" : "✓ done"}
+          {isPending ? "⏳ uploading" : isErr ? "✗ error" : "✓ done"}
         </span>
       </div>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          marginTop: 5, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 6, padding: "2px 10px", color: "rgba(255,255,255,0.3)",
-          fontFamily: "'DM Mono',monospace", fontSize: 10, cursor: "pointer",
-        }}
-      >
-        {open ? "▲ hide" : "▼ details"}
-      </button>
-      {open && (
-        <div style={{ marginTop: 6 }}>
-          <pre style={{
-            padding: 8, borderRadius: 6, background: "rgba(0,0,0,0.5)",
-            color: "#7ec8a0", fontFamily: "'DM Mono',monospace", fontSize: 10,
-            whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 150, overflowY: "auto",
+      {!isPending && (
+        <>
+          <button onClick={() => setOpen((o) => !o)} style={{
+            marginTop: 5, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 6, padding: "2px 10px", color: "rgba(255,255,255,0.3)",
+            fontFamily: "'DM Mono',monospace", fontSize: 10, cursor: "pointer",
           }}>
-            {JSON.stringify(tc.input, null, 2)}
-          </pre>
-          <pre style={{
-            marginTop: 4, padding: 8, borderRadius: 6, background: "rgba(0,0,0,0.5)",
-            color: isErr ? "#ef5350" : "rgba(255,255,255,0.45)",
-            fontFamily: "'DM Mono',monospace", fontSize: 10,
-            whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 150, overflowY: "auto",
-          }}>
-            {tc.result}
-          </pre>
-        </div>
+            {open ? "▲ hide" : "▼ details"}
+          </button>
+          {open && (
+            <div style={{ marginTop: 6 }}>
+              <pre style={{
+                padding: 8, borderRadius: 6, background: "rgba(0,0,0,0.5)",
+                color: "#7ec8a0", fontFamily: "'DM Mono',monospace", fontSize: 10,
+                whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 150, overflowY: "auto",
+              }}>
+                {JSON.stringify(tc.input, null, 2)}
+              </pre>
+              <pre style={{
+                marginTop: 4, padding: 8, borderRadius: 6, background: "rgba(0,0,0,0.5)",
+                color: isErr ? "#ef5350" : "rgba(255,255,255,0.45)",
+                fontFamily: "'DM Mono',monospace", fontSize: 10,
+                whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 150, overflowY: "auto",
+              }}>
+                {tc.result}
+              </pre>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -112,10 +115,8 @@ function Bubble({ msg }) {
         border: isUser ? "none" : "1px solid rgba(255,255,255,0.08)",
       }}>
         {msg.images?.map((img, j) => (
-          <img
-            key={j} src={img.dataUrl} alt="attached"
-            style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 8, display: "block" }}
-          />
+          <img key={j} src={img.dataUrl} alt="attached"
+            style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 8, display: "block" }} />
         ))}
         {msg.toolCalls?.map((tc, j) => <ToolCallCard key={j} tc={tc} />)}
         {msg.text && (
@@ -133,18 +134,130 @@ function Bubble({ msg }) {
   );
 }
 
+function SettingsPanel({ workerUrl, onSave, onClose }) {
+  const [val, setVal] = useState(workerUrl);
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100,
+      display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem",
+    }} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={{
+        background: "#1a1714", border: "1px solid rgba(212,175,55,0.25)", borderRadius: 14,
+        padding: "1.75rem", width: "100%", maxWidth: 420,
+        boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
+      }}>
+        <div style={{
+          fontFamily: "'Cormorant Garamond',serif", fontSize: "1.1rem",
+          color: "rgba(255,255,255,0.85)", marginBottom: "1.25rem",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+        }}>
+          Settings
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: "1.1rem", cursor: "pointer" }}>✕</button>
+        </div>
+        <div style={{ marginBottom: "1rem" }}>
+          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: "0.7rem", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.4rem" }}>
+            Worker URL
+          </div>
+          <input
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            placeholder="https://vamoos-mcp-server.ianball99.workers.dev"
+            style={{
+              width: "100%", padding: "0.6rem 0.8rem",
+              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 7, fontFamily: "'DM Mono',monospace", fontSize: "0.75rem",
+              color: "rgba(255,255,255,0.8)", outline: "none",
+            }}
+          />
+          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", marginTop: "0.35rem" }}>
+            Used for binary file uploads (background images, documents).
+          </div>
+        </div>
+        <button onClick={() => { onSave(val.trim()); onClose(); }} style={{
+          width: "100%", padding: "0.65rem",
+          background: "linear-gradient(135deg,#d4af37,#a07d20)", color: "#1a1208",
+          border: "none", borderRadius: 7, fontFamily: "'DM Mono',monospace",
+          fontSize: "0.82rem", fontWeight: 500, cursor: "pointer",
+        }}>
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [messages, setMessages] = useState([]);
   const [apiHistory, setApiHistory] = useState([]);
   const [input, setInput] = useState("");
   const [pendingImages, setPending] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [statusText, setStatusText] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [workerUrl, setWorkerUrl] = useState(
+    () => localStorage.getItem(WORKER_URL_KEY) || DEFAULT_WORKER_URL
+  );
   const bottomRef = useRef(null);
   const taRef = useRef(null);
+  // Keep a ref to the latest images so executeUpload can access them after state clears
+  const imagesRef = useRef([]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  const saveWorkerUrl = (url) => {
+    setWorkerUrl(url);
+    localStorage.setItem(WORKER_URL_KEY, url);
+  };
+
+  // Execute a binary upload via multipart/form-data to the Worker /upload endpoint
+  const executeUpload = async (pendingUpload, images) => {
+    const img = images[0];
+    if (!img) return { ok: false, error: "No image attached" };
+
+    const { input: inp, name } = pendingUpload;
+
+    // base64 → binary blob
+    const byteString = atob(img.base64);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+    const blob = new Blob([ab], { type: img.type });
+
+    const fd = new FormData();
+    fd.append("file", blob, inp.filename || img.name);
+    fd.append("reference_id", inp.reference_code || "");
+    fd.append("vamoos_id", String(inp.vamoos_id || 0));
+    fd.append("departure_date", inp.departure_date || "");
+    fd.append("return_date", inp.return_date || "");
+    fd.append("image_filename", inp.filename || img.name);
+    fd.append("image_content_type", inp.content_type || img.type);
+    if (name === "upload_document") {
+      fd.append("upload_type", "document");
+      fd.append("document_name", inp.document_name || "Document");
+    }
+
+    try {
+      const res = await fetch(`${workerUrl}/upload`, { method: "POST", body: fd });
+      const data = await res.json();
+      return { ok: data.ok, s3url: data.s3url, data };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  };
+
+  const callChat = async (messages, resumeToolResult) => {
+    const body = resumeToolResult ? { messages, resumeToolResult } : { messages };
+    const res = await fetch(CHAT_FN, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  };
 
   const send = async (text) => {
     const userText = (text || input).trim();
@@ -154,9 +267,9 @@ export default function App() {
 
     setInput("");
     setPending([]);
+    imagesRef.current = images;
     if (taRef.current) taRef.current.style.height = "auto";
 
-    // Build API message — images as base64 vision blocks, then text
     const contentParts = [];
     images.forEach((img) =>
       contentParts.push({ type: "image", source: { type: "base64", media_type: img.type, data: img.base64 } })
@@ -165,6 +278,7 @@ export default function App() {
 
     setMessages((prev) => [...prev, { role: "user", text: userText, images }]);
     setLoading(true);
+    setStatusText("Thinking…");
 
     const newHistory = [
       ...apiHistory,
@@ -172,21 +286,67 @@ export default function App() {
     ];
 
     try {
-      const res = await fetch(CHAT_FN, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newHistory }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-
-      const { text: replyText, toolCalls } = data;
-      setApiHistory([...newHistory, { role: "assistant", content: replyText }]);
-      setMessages((prev) => [...prev, { role: "assistant", text: replyText, toolCalls }]);
+      await runLoop(newHistory, null, images);
     } catch (e) {
       setMessages((prev) => [...prev, { role: "assistant", text: `⚠ ${e.message}` }]);
     } finally {
       setLoading(false);
+      setStatusText("");
+    }
+  };
+
+  // Handles the multi-turn loop including client-side uploads
+  const runLoop = async (history, resumeToolResult, images) => {
+    const data = await callChat(history, resumeToolResult);
+
+    if (data.pendingUpload) {
+      const { pendingUpload, conversationState, toolCalls } = data;
+
+      // Show the tool call card as "uploading"
+      setMessages((prev) => [...prev, {
+        role: "assistant",
+        text: null,
+        toolCalls: [...(toolCalls || []), { name: pendingUpload.name, input: pendingUpload.input, result: "uploading…" }],
+      }]);
+      setStatusText("Uploading file…");
+
+      const uploadResult = await executeUpload(pendingUpload, images);
+      const resultText = uploadResult.ok
+        ? `Upload successful. File stored at: ${uploadResult.s3url}`
+        : `Upload failed: ${uploadResult.error || JSON.stringify(uploadResult.data)}`;
+
+      // Update the tool call card with the result
+      setMessages((prev) => {
+        const updated = [...prev];
+        const last = updated[updated.length - 1];
+        if (last?.toolCalls) {
+          const tcs = [...last.toolCalls];
+          tcs[tcs.length - 1] = { ...tcs[tcs.length - 1], result: resultText };
+          updated[updated.length - 1] = { ...last, toolCalls: tcs };
+        }
+        return updated;
+      });
+
+      setStatusText("Thinking…");
+
+      // Resume the conversation with the upload result
+      await runLoop(
+        conversationState,
+        { tool_use_id: pendingUpload.toolUseId, content: resultText },
+        images
+      );
+    } else {
+      // Normal final response
+      const { text: replyText, toolCalls } = data;
+      setApiHistory([...history, { role: "assistant", content: replyText }]);
+      setMessages((prev) => {
+        // If the last message was a tool call card (from pendingUpload), append text to it
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && last?.toolCalls && !last?.text && replyText) {
+          return [...prev.slice(0, -1), { ...last, text: replyText }];
+        }
+        return [...prev, { role: "assistant", text: replyText, toolCalls }];
+      });
     }
   };
 
@@ -207,6 +367,14 @@ export default function App() {
   return (
     <>
       <style>{css}</style>
+      {showSettings && (
+        <SettingsPanel
+          workerUrl={workerUrl}
+          onSave={saveWorkerUrl}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+
       <div style={{
         minHeight: "100vh", background: "#0d0d0d",
         backgroundImage: "radial-gradient(ellipse 80% 40% at 50% -5%,rgba(212,175,55,0.07) 0%,transparent 70%)",
@@ -243,17 +411,19 @@ export default function App() {
               claude-sonnet-4 · mcp tools
             </div>
           </div>
-          <div style={{ marginLeft: "auto" }}>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => setShowSettings(true)} style={{
+              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 8, padding: "4px 12px", color: "rgba(255,255,255,0.4)",
+              fontFamily: "'DM Mono',monospace", fontSize: 10, cursor: "pointer",
+            }}>⚙ settings</button>
             <div style={{
               background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.22)",
               borderRadius: 20, padding: "4px 14px",
               display: "flex", alignItems: "center", gap: 7,
               fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#d4af37",
             }}>
-              <span style={{
-                width: 6, height: 6, borderRadius: "50%",
-                background: "#4caf50", boxShadow: "0 0 6px #4caf50",
-              }} />
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4caf50", boxShadow: "0 0 6px #4caf50" }} />
               live
             </div>
           </div>
@@ -284,19 +454,16 @@ export default function App() {
                 fontSize: 13, fontStyle: "italic", color: "rgba(255,255,255,0.3)",
                 marginBottom: 28, textAlign: "center", fontFamily: "Georgia,serif",
               }}>
-                I can manage your Vamoos itineraries — create, update, and upload files.
+                Manage Vamoos itineraries — create, update, and upload files.
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", maxWidth: 520 }}>
                 {SUGGESTIONS.map((s, i) => (
-                  <button
-                    key={i}
-                    onClick={() => send(s)}
-                    style={{
-                      background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: 20, padding: "8px 16px", fontFamily: "Georgia,serif",
-                      fontStyle: "italic", fontSize: 13, color: "rgba(255,255,255,0.5)",
-                      cursor: "pointer", transition: "all 0.2s",
-                    }}
+                  <button key={i} onClick={() => send(s)} style={{
+                    background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 20, padding: "8px 16px", fontFamily: "Georgia,serif",
+                    fontStyle: "italic", fontSize: 13, color: "rgba(255,255,255,0.5)",
+                    cursor: "pointer", transition: "all 0.2s",
+                  }}
                     onMouseEnter={(e) => Object.assign(e.target.style, { background: "rgba(212,175,55,0.1)", borderColor: "rgba(212,175,55,0.35)", color: "#d4af37" })}
                     onMouseLeave={(e) => Object.assign(e.target.style, { background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" })}
                   >
@@ -311,11 +478,8 @@ export default function App() {
               {loading && (
                 <div style={{ display: "flex", alignItems: "center", gap: 12, paddingLeft: 42 }}>
                   <ThinkingDots />
-                  <span style={{
-                    fontFamily: "'DM Mono',monospace", fontSize: 11,
-                    color: "rgba(255,255,255,0.3)",
-                  }}>
-                    Thinking…
+                  <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+                    {statusText}
                   </span>
                 </div>
               )}
@@ -337,7 +501,6 @@ export default function App() {
             }} />
           )}
 
-          {/* Image thumbnails */}
           {pendingImages.length > 0 && (
             <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
               {pendingImages.map((img, i) => (
@@ -347,15 +510,12 @@ export default function App() {
                   border: "1px solid rgba(212,175,55,0.3)",
                 }}>
                   <img src={img.dataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  <button
-                    onClick={() => setPending((p) => p.filter((_, j) => j !== i))}
-                    style={{
-                      position: "absolute", top: 2, right: 2, width: 16, height: 16,
-                      background: "rgba(0,0,0,0.7)", border: "none", borderRadius: "50%",
-                      color: "#fff", fontSize: 9, cursor: "pointer",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >✕</button>
+                  <button onClick={() => setPending((p) => p.filter((_, j) => j !== i))} style={{
+                    position: "absolute", top: 2, right: 2, width: 16, height: 16,
+                    background: "rgba(0,0,0,0.7)", border: "none", borderRadius: "50%",
+                    color: "#fff", fontSize: 9, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>✕</button>
                 </div>
               ))}
             </div>
@@ -366,26 +526,23 @@ export default function App() {
             background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)",
             borderRadius: 24, padding: "12px 12px 12px 20px",
           }}>
-            {/* Image attach */}
-            <label
-              style={{ color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: "1.2rem", flexShrink: 0, position: "relative" }}
+            <label style={{
+              color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: "1.2rem",
+              flexShrink: 0, position: "relative",
+            }}
               onMouseEnter={(e) => (e.currentTarget.style.color = "#d4af37")}
               onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.4)")}
             >
               ＋
-              <input
-                type="file" accept="image/*" multiple
+              <input type="file" accept="image/*,application/pdf" multiple
                 style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
                 onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
               />
             </label>
 
-            <textarea
-              ref={taRef}
-              rows={1}
-              placeholder="Ask about your itineraries, or attach an image…"
-              value={input}
-              disabled={loading}
+            <textarea ref={taRef} rows={1}
+              placeholder="Ask about your itineraries, or attach an image to upload…"
+              value={input} disabled={loading}
               onChange={(e) => {
                 setInput(e.target.value);
                 e.target.style.height = "auto";
@@ -401,8 +558,7 @@ export default function App() {
               }}
             />
 
-            <button
-              onClick={() => send()}
+            <button onClick={() => send()}
               disabled={(!input.trim() && pendingImages.length === 0) || loading}
               style={{
                 width: 38, height: 38, borderRadius: "50%", border: "none",
@@ -413,15 +569,14 @@ export default function App() {
                 boxShadow: "0 2px 12px rgba(212,175,55,0.3)",
                 opacity: (!input.trim() && pendingImages.length === 0) || loading ? 0.4 : 1,
                 transition: "opacity 0.2s",
-              }}
-            >↑</button>
+              }}>↑</button>
           </div>
 
           <div style={{
             fontFamily: "'DM Mono',monospace", fontSize: 10,
             color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: 8,
           }}>
-            shift+enter for new line · attach images for vision
+            shift+enter for new line · attach image then ask to upload it
           </div>
         </div>
       </div>

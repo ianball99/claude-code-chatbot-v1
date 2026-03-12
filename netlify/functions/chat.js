@@ -1,6 +1,7 @@
 // netlify/functions/chat.js
-// Tools are hardcoded (matching the Worker) to avoid tools/list round-trip.
-// Tool execution calls the MCP server via JSON-RPC with SSE stream reading.
+// For non-upload tools: full agentic loop via MCP server.
+// For upload tools: stops and returns pendingUpload to the React app,
+// which POSTs the binary blob directly to the Worker /upload endpoint.
 //
 // Env vars required:
 //   ANTHROPIC_API_KEY  — Anthropic API key
@@ -8,7 +9,11 @@
 
 const MODEL = "claude-sonnet-4-20250514";
 
-const SYSTEM = `You are a helpful Vamoos travel assistant. You have access to tools to manage Vamoos itineraries: create trips, update details, upload background images, and attach travel documents. Always use the available tools to fulfil requests — never invent data. Be concise and friendly.`;
+const SYSTEM = `You are a helpful Vamoos travel assistant. You have access to tools to manage Vamoos itineraries: create trips, update details, upload background images, and attach travel documents.
+
+When the user asks to upload an image or document that they have attached to the conversation, call the appropriate upload tool with the metadata (reference_code, vamoos_id, dates, filename, content_type). Do NOT ask for base64 data — the file will be handled automatically from the attachment.
+
+Always use the available tools to fulfil requests. Be concise and friendly.`;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +21,8 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Tool definitions matching the Worker exactly — avoids tools/list round-trip
+const UPLOAD_TOOLS = new Set(["upload_background_image", "upload_document"]);
+
 const TOOLS = [
   {
     name: "create_itinerary",
@@ -24,7 +30,7 @@ const TOOLS = [
     input_schema: {
       type: "object",
       properties: {
-        reference_code: { type: "string", description: "Unique reference code shown as the Passcode in the app (e.g. SmithRome25)" },
+        reference_code: { type: "string", description: "Unique reference code (e.g. SmithRome25)" },
         departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
         return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
         field1: { type: "string", description: "Destination / Event Title (optional)" },
@@ -39,8 +45,8 @@ const TOOLS = [
     input_schema: {
       type: "object",
       properties: {
-        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary to update" },
-        vamoos_id: { type: "number", description: "The vamoos_id of the itinerary — stays constant across all updates" },
+        reference_code: { type: "string", description: "Reference code of the itinerary to update" },
+        vamoos_id: { type: "number", description: "The vamoos_id — stays constant across all updates" },
         departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
         return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
         field1: { type: "string", description: "Destination / Event Title (optional)" },
@@ -51,37 +57,35 @@ const TOOLS = [
   },
   {
     name: "upload_background_image",
-    description: "Upload a background image to a Vamoos itinerary. Provide the file as base64-encoded data.",
+    description: "Upload a background image to a Vamoos itinerary. The file binary is handled automatically from the user's attachment — just provide the metadata.",
     input_schema: {
       type: "object",
       properties: {
-        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
+        reference_code: { type: "string", description: "Reference code of the itinerary" },
         vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
         departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
         return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
-        file_data: { type: "string", description: "Base64-encoded image file data" },
         filename: { type: "string", description: "Filename including extension (e.g. background.jpg)" },
-        content_type: { type: "string", description: "MIME type (e.g. image/jpeg, image/png)" },
+        content_type: { type: "string", description: "MIME type (e.g. image/jpeg)" },
       },
-      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "file_data", "filename", "content_type"],
+      required: ["reference_code", "vamoos_id", "departure_date", "return_date"],
     },
   },
   {
     name: "upload_document",
-    description: "Upload a document to a Vamoos itinerary's travel documents. Provide the file as base64-encoded data.",
+    description: "Upload a document to a Vamoos itinerary. The file binary is handled automatically from the user's attachment — just provide the metadata.",
     input_schema: {
       type: "object",
       properties: {
-        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
+        reference_code: { type: "string", description: "Reference code of the itinerary" },
         vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
         departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
         return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
-        file_data: { type: "string", description: "Base64-encoded document file data" },
         filename: { type: "string", description: "Filename including extension (e.g. itinerary.pdf)" },
         content_type: { type: "string", description: "MIME type (e.g. application/pdf)" },
         document_name: { type: "string", description: "Display name shown in the app (e.g. Travel Itinerary)" },
       },
-      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "file_data", "filename", "content_type", "document_name"],
+      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "document_name"],
     },
   },
 ];
@@ -108,7 +112,7 @@ export const handler = async (event) => {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Invalid JSON" }) };
   }
 
-  const { messages } = body;
+  const { messages, resumeToolResult } = body;
   if (!Array.isArray(messages) || messages.length === 0) {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "messages array required" }) };
   }
@@ -120,7 +124,11 @@ export const handler = async (event) => {
   };
 
   try {
-    let currentMessages = [...messages];
+    // If resuming after a client-side upload, inject the tool result
+    let currentMessages = resumeToolResult
+      ? [...messages, { role: "user", content: [{ type: "tool_result", tool_use_id: resumeToolResult.tool_use_id, content: resumeToolResult.content }] }]
+      : [...messages];
+
     const toolCalls = [];
 
     while (true) {
@@ -158,20 +166,37 @@ export const handler = async (event) => {
         };
       }
 
+      // Add assistant message (with tool_use blocks) to history
       currentMessages = [...currentMessages, { role: "assistant", content: data.content }];
-      const toolResults = [];
 
+      // Check for upload tools — hand these back to the client
+      const uploadBlock = data.content.find((b) => b.type === "tool_use" && UPLOAD_TOOLS.has(b.name));
+      if (uploadBlock) {
+        return {
+          statusCode: 200,
+          headers: { ...CORS, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pendingUpload: {
+              toolUseId: uploadBlock.id,
+              name: uploadBlock.name,
+              input: uploadBlock.input,
+            },
+            conversationState: currentMessages,
+            toolCalls,
+          }),
+        };
+      }
+
+      // Non-upload tool — execute via MCP server
+      const toolResults = [];
       for (const block of data.content) {
         if (block.type !== "tool_use") continue;
-
         const result = mcpUrl
           ? await callMcpTool(mcpUrl, block.name, block.input)
           : JSON.stringify({ error: "MCP_SERVER_URL not configured" });
-
         toolCalls.push({ name: block.name, input: block.input, result });
         toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
       }
-
       currentMessages = [...currentMessages, { role: "user", content: toolResults }];
     }
   } catch (e) {
@@ -183,27 +208,19 @@ export const handler = async (event) => {
   }
 };
 
-// Call a tool on the MCP server via JSON-RPC.
-// Reads the SSE stream line-by-line and stops after the first data event.
 async function callMcpTool(mcpUrl, toolName, toolInput) {
   try {
-    // Initialize session
     const initRes = await fetch(mcpUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
       body: JSON.stringify({
         jsonrpc: "2.0", id: 1, method: "initialize",
-        params: {
-          protocolVersion: "2024-11-05",
-          capabilities: {},
-          clientInfo: { name: "claude-chatbot-v1", version: "1.0" },
-        },
+        params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "claude-chatbot-v1", version: "1.0" } },
       }),
     });
     const sessionId = initRes.headers.get("mcp-session-id");
     await readFirstSseData(initRes);
 
-    // Send initialized notification (fire and forget)
     const notifHeaders = { "Content-Type": "application/json" };
     if (sessionId) notifHeaders["mcp-session-id"] = sessionId;
     fetch(mcpUrl, {
@@ -212,10 +229,8 @@ async function callMcpTool(mcpUrl, toolName, toolInput) {
       body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
     }).catch(() => {});
 
-    // Call the tool
     const toolHeaders = { "Content-Type": "application/json", Accept: "application/json, text/event-stream" };
     if (sessionId) toolHeaders["mcp-session-id"] = sessionId;
-
     const toolRes = await fetch(mcpUrl, {
       method: "POST",
       headers: toolHeaders,
@@ -227,9 +242,7 @@ async function callMcpTool(mcpUrl, toolName, toolInput) {
 
     const toolData = await readFirstSseData(toolRes);
     if (toolData?.result?.content) {
-      return toolData.result.content
-        .map((c) => (c.type === "text" ? c.text : JSON.stringify(c)))
-        .join("\n");
+      return toolData.result.content.map((c) => (c.type === "text" ? c.text : JSON.stringify(c))).join("\n");
     }
     if (toolData?.result) return JSON.stringify(toolData.result);
     if (toolData?.error) return `MCP error: ${JSON.stringify(toolData.error)}`;
@@ -239,33 +252,26 @@ async function callMcpTool(mcpUrl, toolName, toolInput) {
   }
 }
 
-// Read an SSE or JSON response — stops reading after the first data event
-// to avoid hanging on a long-lived SSE stream.
 async function readFirstSseData(res) {
   const ct = res.headers.get("content-type") || "";
-
   if (!ct.includes("text/event-stream")) {
-    // Plain JSON response
     try { return await res.json(); } catch { return null; }
   }
-
-  // SSE — read line by line via the stream reader, stop on first data: line
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
-      buffer = lines.pop(); // keep incomplete last line
+      buffer = lines.pop();
       for (const line of lines) {
         if (line.startsWith("data: ")) {
           try {
             const parsed = JSON.parse(line.slice(6));
-            reader.cancel(); // stop reading — we have what we need
+            reader.cancel();
             return parsed;
           } catch {}
         }
