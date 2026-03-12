@@ -9,9 +9,11 @@
 
 const MODEL = "claude-sonnet-4-20250514";
 
-const SYSTEM = `You are a helpful Vamoos travel assistant. You have access to tools to manage Vamoos itineraries: create trips, update details, upload background images, and attach travel documents.
+const SYSTEM = `You are a helpful Vamoos travel assistant. You have access to tools to manage Vamoos itineraries: list trips, retrieve trip details, create trips, update details, upload background images, and attach travel documents.
 
 When the user asks to upload an image or document that they have attached to the conversation, call the appropriate upload tool with the metadata (reference_code, vamoos_id, dates, filename, content_type). Do NOT ask for base64 data — the file will be handled automatically from the attachment.
+
+When the user asks to retrieve or look up an itinerary, use get_itinerary. When they ask to list all itineraries, use list_itineraries.
 
 Always use the available tools to fulfil requests. Be concise and friendly.`;
 
@@ -24,6 +26,28 @@ const CORS = {
 const UPLOAD_TOOLS = new Set(["upload_background_image", "upload_document"]);
 
 const TOOLS = [
+  {
+    name: "list_itineraries",
+    description: "List all Vamoos itineraries for the operator. Returns a summary of all trips including reference codes, dates, and vamoos_ids.",
+    input_schema: {
+      type: "object",
+      properties: {
+        page: { type: "number", description: "Page number (default: 1)" },
+        per_page: { type: "number", description: "Results per page, max 100 (default: 50)" },
+      },
+    },
+  },
+  {
+    name: "get_itinerary",
+    description: "Retrieve a single Vamoos itinerary by its reference code (Passcode). Returns full details including vamoos_id, dates, background, documents, and all fields.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference_code: { type: "string", description: "The reference code (Passcode) of the itinerary to retrieve" },
+      },
+      required: ["reference_code"],
+    },
+  },
   {
     name: "create_itinerary",
     description: "Create a new Vamoos trip/itinerary. The reference_code is shown as the Passcode in the app.",
