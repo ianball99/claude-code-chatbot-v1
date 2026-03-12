@@ -211,28 +211,59 @@ export default function App() {
     localStorage.setItem(WORKER_URL_KEY, url);
   };
 
-  // Execute a binary upload via multipart/form-data to the Worker /upload endpoint
-  const executeUpload = async (pendingUpload, images) => {
-    const img = images[0];
-    if (!img) return { ok: false, error: "No image attached" };
+  // Convert an HTML string to a PDF blob using html2pdf.js (loaded via CDN in index.html)
+  const htmlToPdfBlob = (html) =>
+    new Promise((resolve, reject) => {
+      const container = document.createElement("div");
+      container.innerHTML = html;
+      container.style.position = "absolute";
+      container.style.left = "-9999px";
+      document.body.appendChild(container);
+      window.html2pdf()
+        .set({ margin: 10, filename: "itinerary.pdf", jsPDF: { unit: "mm", format: "a4", orientation: "portrait" } })
+        .from(container)
+        .outputPdf("blob")
+        .then((blob) => { document.body.removeChild(container); resolve(blob); })
+        .catch((err) => { document.body.removeChild(container); reject(err); });
+    });
 
+  // Execute a binary upload via multipart/form-data to the Worker /upload endpoint.
+  // If pendingUpload.input.html_content is set, converts HTML→PDF first (no file attachment needed).
+  const executeUpload = async (pendingUpload, images) => {
     const { input: inp, name } = pendingUpload;
 
-    // base64 → binary blob
-    const byteString = atob(img.base64);
-    const ab = new ArrayBuffer(byteString.length);
-    const ia = new Uint8Array(ab);
-    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
-    const blob = new Blob([ab], { type: img.type });
+    let blob, filename, contentType;
+
+    if (inp.html_content) {
+      // HTML→PDF path — no user file attachment required
+      try {
+        blob = await htmlToPdfBlob(inp.html_content);
+      } catch (e) {
+        return { ok: false, error: `PDF generation failed: ${e.message}` };
+      }
+      filename = inp.filename || "itinerary.pdf";
+      contentType = "application/pdf";
+    } else {
+      // File attachment path
+      const img = images[0];
+      if (!img) return { ok: false, error: "No file attached" };
+      const byteString = atob(img.base64);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+      blob = new Blob([ab], { type: img.type });
+      filename = inp.filename || img.name;
+      contentType = inp.content_type || img.type;
+    }
 
     const fd = new FormData();
-    fd.append("file", blob, inp.filename || img.name);
+    fd.append("file", blob, filename);
     fd.append("reference_id", inp.reference_code || "");
     fd.append("vamoos_id", String(inp.vamoos_id || 0));
     fd.append("departure_date", inp.departure_date || "");
     fd.append("return_date", inp.return_date || "");
-    fd.append("image_filename", inp.filename || img.name);
-    fd.append("image_content_type", inp.content_type || img.type);
+    fd.append("image_filename", filename);
+    fd.append("image_content_type", contentType);
     if (name === "upload_document") {
       fd.append("upload_type", "document");
       fd.append("document_name", inp.document_name || "Document");
@@ -312,7 +343,7 @@ export default function App() {
         text: null,
         toolCalls: [...(toolCalls || []), { name: pendingUpload.name, input: pendingUpload.input, result: "uploading…" }],
       }]);
-      setStatusText("Uploading file…");
+      setStatusText(pendingUpload.input?.html_content ? "Generating PDF…" : "Uploading file…");
 
       const uploadResult = await executeUpload(pendingUpload, images);
       const resultText = uploadResult.ok
