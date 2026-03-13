@@ -7,7 +7,7 @@
 //   ANTHROPIC_API_KEY  — Anthropic API key
 //   MCP_SERVER_URL     — e.g. https://vamoos-mcp-server.ianball99.workers.dev/mcp
 
-const MODEL = "claude-sonnet-4-5-20251001";
+const MODEL = "claude-sonnet-4-5";
 
 const SYSTEM = `You are a friendly interviewer. The user is planning a travel trip.
 Your aim is to proactively capture details of the trip and load it into Vamoos using the tools available to you.
