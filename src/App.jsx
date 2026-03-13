@@ -216,11 +216,22 @@ export default function App() {
     new Promise((resolve, reject) => {
       const container = document.createElement("div");
       container.innerHTML = html;
-      container.style.position = "absolute";
-      container.style.left = "-9999px";
+      // Must set an explicit width — without it html2canvas renders a zero-width element → blank PDF
+      container.style.position = "fixed";
+      container.style.top = "0";
+      container.style.left = "0";
+      container.style.width = "794px"; // A4 at 96 dpi
+      container.style.zIndex = "-9999";
+      container.style.opacity = "0";
+      container.style.pointerEvents = "none";
       document.body.appendChild(container);
       window.html2pdf()
-        .set({ margin: 10, filename: "itinerary.pdf", jsPDF: { unit: "mm", format: "a4", orientation: "portrait" } })
+        .set({
+          margin: 10,
+          filename: "itinerary.pdf",
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+        })
         .from(container)
         .outputPdf("blob")
         .then((blob) => { document.body.removeChild(container); resolve(blob); })

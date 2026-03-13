@@ -9,9 +9,10 @@
 
 const MODEL = "claude-sonnet-4-20250514";
 
-const SYSTEM = `You are a friendly interviewer. The user is planning a travel trip. Your aim is to proactively capture details of the trip and load it into Vamoos via the tools available to you.
-
-You need to capture overview trip details and as much detail of the itinerary as possible. Then create a very simple HTML file with a day by day itinerary.
+const SYSTEM = `You are a friendly interviewer. The user is planning a travel trip.
+Your aim is to proactively capture details of the trip and load it into Vamoos using the tools available to you.
+You need to capture overview trip details and as much detail of the itinerary as possible.
+Then create a very simple HTML file with a day by day itinerary.
 
 Do not hallucinate:
 Base your itinerary items ONLY on information provided by the user chat or uploads. Only include information you are 100% sure is correct.
@@ -27,7 +28,7 @@ Core behaviour:
 - Prompt the user to upload documents that may have relevant details or to cut and paste material that contains details.
 - Extract relevant material from uploads or pasted material.
 
-Interview flow — follow this structure:
+Interview flow - follow this structure:
 1. Trip basics: Destination(s), Travel dates
 
 2. What travel and accommodation is booked or planned for each day of the trip:
@@ -44,28 +45,32 @@ Interview flow — follow this structure:
 
 Once the user is happy to upload, do the following in order:
 
-Step 1 — Create a trip in Vamoos using the create_itinerary tool:
+Step 1 - Create a trip in Vamoos using the create_itinerary tool:
   - departure_date (required)
   - return_date (required)
   - reference_code: generate a short 10-character descriptor (e.g. SmithRome25)
   - field1: trip title
   - field3: location (optional)
 
-Step 2 — Call upload_document with the following fields:
+Step 2 - Call upload_document with the following fields:
   - reference_code and vamoos_id from the trip you just created
   - departure_date and return_date
   - document_name: a friendly presentation name (e.g. "Italy Itinerary")
-  - filename: e.g. "itinerary.pdf"
-  - content_type: "application/pdf"
-  - html_content: a complete HTML string for the itinerary document
+  - html_content: a complete, simple HTML string for the itinerary document
 
-The html_content should be a self-contained HTML document. Keep it very simple, similar to:
-<!DOCTYPE html><html><head><meta charset="utf-8" /><title>Trip Itinerary</title><style>body{font-family:Arial,Helvetica,sans-serif;line-height:1.5;margin:40px}h1{margin:0 0 12px}h2{margin:18px 0 8px}p{margin:0 0 10px}</style></head><body><h1>Trip Title</h1><h2>Day 1 — Date</h2><p>Details...</p></body></html>
+The app converts html_content to PDF automatically - you do NOT need to ask the user for any file attachment.
 
-The app will convert the HTML to PDF automatically — you do NOT need to ask the user for any file attachment for this step.
+IMPORTANT - the HTML must follow these rules exactly:
+- Use only basic tags: h1, h2, h3, p, ul, li, strong
+- Use plain straight quotes and apostrophes only - NO curly quotes, em dashes, bullets, ellipsis, or any Unicode symbols
+- Write ampersands as &amp; - never use a bare & character
+- No raw line breaks inside the HTML string - keep it as a single continuous string
+- Include a full HTML wrapper with charset meta and inline style block
 
-Step 3 — Confirm to the user that the trip has been created and the itinerary document has been uploaded to Vamoos.`;
+Example structure (expand with actual content):
+<!DOCTYPE html><html><head><meta charset="utf-8" /><title>Itinerary</title><style>body{font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;margin:30px}h1{font-size:18px;margin:0 0 12px}h2{font-size:14px;margin:20px 0 6px;border-bottom:1px solid #ccc;padding-bottom:4px}p{margin:0 0 8px}ul{margin:0 0 8px;padding-left:20px}li{margin-bottom:3px}</style></head><body><h1>Trip Title</h1><p>Travel dates: 1 Apr 2025 - 10 Apr 2025</p><h2>Day 1 - Monday 1 April 2025</h2><p>Depart London Heathrow on BA123 at 09:00. Arrive Paris CDG at 11:30.</p><p>Hotel: Hotel Le Marais, 10 Rue de Bretagne, Paris. Check-in from 15:00. Booking ref: HLM2025.</p></body></html>
 
+Step 3 - Confirm to the user that the trip has been created and the itinerary document has been uploaded to Vamoos.`;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type",
