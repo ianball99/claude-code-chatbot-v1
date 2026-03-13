@@ -52,23 +52,29 @@ Step 1 - Create a trip in Vamoos using the create_itinerary tool:
   - field1: trip title
   - field3: location (optional)
 
-Step 2 - Call upload_document with the following fields:
+Step 2 - Call upload_created_itinerary_document with the following fields:
   - reference_code and vamoos_id from the trip you just created
   - departure_date and return_date
   - document_name: a friendly presentation name (e.g. "Italy Itinerary")
-  - html_content: a complete, simple HTML string for the itinerary document
+  - markdown_content: the full itinerary written in plain markdown
 
-The app converts html_content to PDF automatically - you do NOT need to ask the user for any file attachment.
+The server converts the markdown to a styled PDF automatically - you do NOT need to ask the user for any file attachment.
 
-IMPORTANT - the HTML must follow these rules exactly:
-- Use only basic tags: h1, h2, h3, p, ul, li, strong
-- Use plain straight quotes and apostrophes only - NO curly quotes, em dashes, bullets, ellipsis, or any Unicode symbols
-- Write ampersands as &amp; - never use a bare & character
-- No raw line breaks inside the HTML string - keep it as a single continuous string
-- Include a full HTML wrapper with charset meta and inline style block
+Write the markdown_content using:
+- # for the main title
+- ## for day/section headings
+- **bold** for emphasis
+- - for bullet points
+- Plain straight quotes and apostrophes only
 
 Example structure (expand with actual content):
-<!DOCTYPE html><html><head><meta charset="utf-8" /><title>Itinerary</title><style>body{font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;margin:30px}h1{font-size:18px;margin:0 0 12px}h2{font-size:14px;margin:20px 0 6px;border-bottom:1px solid #ccc;padding-bottom:4px}p{margin:0 0 8px}ul{margin:0 0 8px;padding-left:20px}li{margin-bottom:3px}</style></head><body><h1>Trip Title</h1><p>Travel dates: 1 Apr 2025 - 10 Apr 2025</p><h2>Day 1 - Monday 1 April 2025</h2><p>Depart London Heathrow on BA123 at 09:00. Arrive Paris CDG at 11:30.</p><p>Hotel: Hotel Le Marais, 10 Rue de Bretagne, Paris. Check-in from 15:00. Booking ref: HLM2025.</p></body></html>
+# Italy Trip - April 2025
+Travel dates: 1 Apr 2025 - 10 Apr 2025
+
+## Day 1 - Monday 1 April 2025
+Depart London Heathrow on BA123 at 09:00. Arrive Rome FCO at 13:00.
+
+**Hotel:** Hotel Artemide, Via Nazionale 22, Rome. Check-in from 15:00. Booking ref: ART2025.
 
 Step 3 - Confirm to the user that the trip has been created and the itinerary document has been uploaded to Vamoos.`;
 const CORS = {
@@ -155,8 +161,24 @@ const TOOLS = [
     },
   },
   {
+    name: "upload_created_itinerary_document",
+    description: "ALWAYS use this tool when YOU (the assistant) are generating or writing any document content to attach to a Vamoos trip — for example itineraries, welcome letters, or information packs. Write the full content as plain markdown. The server converts the markdown to a styled PDF and attaches it to the trip automatically.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
+        vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
+        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
+        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
+        document_name: { type: "string", description: "Display name shown in the Vamoos app (e.g. 'Travel Itinerary')" },
+        markdown_content: { type: "string", description: "The full document as plain markdown. Use # for title, ## for headings, **bold**, and - for bullets." },
+      },
+      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "document_name", "markdown_content"],
+    },
+  },
+  {
     name: "upload_document",
-    description: "Upload a document to a Vamoos itinerary (also called a trip). If html_content is provided the app will convert it to PDF automatically — no file attachment is needed from the user.",
+    description: "Upload a user-supplied file to a Vamoos itinerary. Use this tool ONLY when the user has provided a file (base64 encoded) or raw HTML to upload — NOT when you are writing the document content yourself. For AI-generated documents use upload_created_itinerary_document instead.",
     input_schema: {
       type: "object",
       properties: {
