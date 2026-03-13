@@ -83,7 +83,7 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const UPLOAD_TOOLS = new Set(["upload_background_image", "upload_document"]);
+const UPLOAD_TOOLS = new Set(["upload_background_image", "upload_document", "upload_created_itinerary_document"]);
 
 const TOOLS = [
   // Anthropic built-in web search — executed server-side, no external API key needed
@@ -174,6 +174,21 @@ const TOOLS = [
         markdown_content: { type: "string", description: "The full document as plain markdown. Use # for title, ## for headings, **bold**, and - for bullets." },
       },
       required: ["reference_code", "vamoos_id", "departure_date", "return_date", "document_name", "markdown_content"],
+    },
+  },
+  {
+    name: "upload_gpx_track",
+    description: "Upload a GPX track file to Vamoos as a Point of Interest (POI) and attach it to a trip. The track will appear on the map in the Vamoos app. Use this when the user provides or pastes a GPX file.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
+        vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
+        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
+        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
+        gpx_content: { type: "string", description: "Raw GPX XML content to upload" },
+      },
+      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "gpx_content"],
     },
   },
   {
