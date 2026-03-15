@@ -12,7 +12,7 @@ const MODEL = "claude-sonnet-4-5";
 const SYSTEM = `You are a friendly interviewer. The user is planning a travel trip.
 Your aim is to proactively capture details of the trip and load it into Vamoos using the tools available to you.
 You need to capture overview trip details and as much detail of the itinerary as possible.
-Then create a very simple HTML file with a day by day itinerary.
+Then create a day by day itinerary document as HTML and upload it.
 
 Do not hallucinate:
 Base your itinerary items ONLY on information provided by the user chat or uploads. Only include information you are 100% sure is correct.
@@ -52,29 +52,49 @@ Step 1 - Create a trip in Vamoos using the create_itinerary tool:
   - field1: trip title
   - field3: location (optional)
 
-Step 2 - Call upload_created_itinerary_document with the following fields:
+Step 2 - Call upload_created_html_itinerary_document with the following fields:
   - reference_code and vamoos_id from the trip you just created
   - departure_date and return_date
   - document_name: a friendly presentation name (e.g. "Italy Itinerary")
-  - markdown_content: the full itinerary written in plain markdown
+  - html_content: the full itinerary written as a complete HTML document
 
-The server converts the markdown to a styled PDF automatically - you do NOT need to ask the user for any file attachment.
+The server uploads the HTML file directly - you do NOT need to ask the user for any file attachment.
 
-Write the markdown_content using:
-- # for the main title
-- ## for day/section headings
-- **bold** for emphasis
-- - for bullet points
+Write the html_content as a complete HTML document:
+- Include <!DOCTYPE html>, <html>, <head> (with <meta charset="utf-8"> and a <style> block), and <body> tags
+- Use <h1> for the main title
+- Use <h2> for day/section headings
+- Use <strong> for emphasis
+- Use <ul> and <li> for bullet points
+- Use <p> for paragraphs
 - Plain straight quotes and apostrophes only
+- Do NOT use markdown — write proper HTML
 
 Example structure (expand with actual content):
-# Italy Trip - April 2025
-Travel dates: 1 Apr 2025 - 10 Apr 2025
-
-## Day 1 - Monday 1 April 2025
-Depart London Heathrow on BA123 at 09:00. Arrive Rome FCO at 13:00.
-
-**Hotel:** Hotel Artemide, Via Nazionale 22, Rome. Check-in from 15:00. Booking ref: ART2025.
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Italy Trip - April 2025</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.6; margin: 40px; }
+    h1 { font-size: 20px; margin-bottom: 8px; }
+    h2 { font-size: 15px; margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+    ul { margin: 0 0 8px; padding-left: 20px; }
+    li { margin-bottom: 3px; }
+    p { margin: 0 0 8px; }
+  </style>
+</head>
+<body>
+  <h1>Italy Trip - April 2025</h1>
+  <p>Travel dates: 1 Apr 2025 - 10 Apr 2025</p>
+  <h2>Day 1 - Monday 1 April 2025</h2>
+  <p>Depart London Heathrow on BA123 at 09:00. Arrive Rome FCO at 13:00.</p>
+  <ul>
+    <li><strong>Hotel:</strong> Hotel Artemide, Via Nazionale 22, Rome. Check-in from 15:00. Booking ref: ART2025.</li>
+  </ul>
+</body>
+</html>
 
 Step 3 - Confirm to the user that the trip has been created and the itinerary document has been uploaded to Vamoos.`;
 const CORS = {
@@ -83,7 +103,7 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const UPLOAD_TOOLS = new Set(["upload_background_image", "upload_document", "upload_created_itinerary_document"]);
+const UPLOAD_TOOLS = new Set(["upload_background_image", "upload_document"]);
 
 const TOOLS = [
   // Anthropic built-in web search — executed server-side, no external API key needed
@@ -161,8 +181,8 @@ const TOOLS = [
     },
   },
   {
-    name: "upload_created_itinerary_document",
-    description: "ALWAYS use this tool when YOU (the assistant) are generating or writing any document content to attach to a Vamoos trip — for example itineraries, welcome letters, or information packs. Write the full content as plain markdown. The server converts the markdown to a styled PDF and attaches it to the trip automatically.",
+    name: "upload_created_html_itinerary_document",
+    description: "ALWAYS use this tool when YOU (the assistant) are generating or writing any document content to attach to a Vamoos trip — for example itineraries, welcome letters, or information packs. Write the full document as HTML. The server uploads it as a .html file and attaches it to the trip automatically. Do NOT use upload_document for AI-generated content.",
     input_schema: {
       type: "object",
       properties: {
@@ -170,10 +190,10 @@ const TOOLS = [
         vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
         departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
         return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
-        document_name: { type: "string", description: "Display name shown in the Vamoos app (e.g. 'Travel Itinerary')" },
-        markdown_content: { type: "string", description: "The full document as plain markdown. Use # for title, ## for headings, **bold**, and - for bullets." },
+        document_name: { type: "string", description: "Display name shown in the Vamoos app (e.g. 'Travel Itinerary'). Also used as the filename." },
+        html_content: { type: "string", description: "The full document written as HTML. Write a complete HTML document with <html>, <head> (including <style>), and <body> tags." },
       },
-      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "document_name", "markdown_content"],
+      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "document_name", "html_content"],
     },
   },
   {
