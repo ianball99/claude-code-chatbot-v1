@@ -240,43 +240,12 @@ export default function App() {
 
   // Execute a binary upload via multipart/form-data to the Worker /upload endpoint.
   // If pendingUpload.input.html_content is set, converts HTML→PDF first (no file attachment needed).
-  const markdownToHtml = (markdown, title) => {
-    const lines = markdown.split("\n");
-    const parts = [];
-    let listOpen = false;
-    const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const inline = (s) => esc(s).replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-    const closeList = () => { if (listOpen) { parts.push("</ul>"); listOpen = false; } };
-    for (const raw of lines) {
-      const line = raw.trimEnd();
-      if (/^### /.test(line)) { closeList(); parts.push(`<h3>${esc(line.slice(4))}</h3>`); }
-      else if (/^## /.test(line)) { closeList(); parts.push(`<h2>${esc(line.slice(3))}</h2>`); }
-      else if (/^# /.test(line)) { closeList(); parts.push(`<h1>${esc(line.slice(2))}</h1>`); }
-      else if (/^[-*] /.test(line)) { if (!listOpen) { parts.push("<ul>"); listOpen = true; } parts.push(`<li>${inline(line.slice(2))}</li>`); }
-      else if (line === "") { closeList(); parts.push(""); }
-      else { closeList(); parts.push(`<p>${inline(line)}</p>`); }
-    }
-    closeList();
-    const body = parts.join("\n");
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;margin:40px}h1{font-size:18px;margin:0 0 12px}h2{font-size:14px;margin:20px 0 6px;border-bottom:1px solid #ccc;padding-bottom:4px}p{margin:0 0 8px}ul{margin:0 0 8px;padding-left:20px}li{margin-bottom:3px}</style></head><body>${body}</body></html>`;
-  };
-
   const executeUpload = async (pendingUpload, images) => {
     const { input: inp, name } = pendingUpload;
 
     let blob, filename, contentType;
 
-    if (inp.markdown_content) {
-      // Markdown→HTML→PDF path (upload_created_itinerary_document)
-      try {
-        const html = markdownToHtml(inp.markdown_content, inp.document_name || "Itinerary");
-        blob = await htmlToPdfBlob(html);
-      } catch (e) {
-        return { ok: false, error: `PDF generation failed: ${e.message}` };
-      }
-      filename = "itinerary.pdf";
-      contentType = "application/pdf";
-    } else if (inp.html_content) {
+    if (inp.html_content) {
       // HTML→PDF path — no user file attachment required
       try {
         blob = await htmlToPdfBlob(inp.html_content);
@@ -306,7 +275,7 @@ export default function App() {
     fd.append("return_date", inp.return_date || "");
     fd.append("image_filename", filename);
     fd.append("image_content_type", contentType);
-    if (name === "upload_document" || name === "upload_created_itinerary_document") {
+    if (name === "upload_document") {
       fd.append("upload_type", "document");
       fd.append("document_name", inp.document_name || "Document");
     }

@@ -213,7 +213,7 @@ const TOOLS = [
   },
   {
     name: "upload_document",
-    description: "Upload a user-supplied file to a Vamoos itinerary. Use this tool ONLY when the user has provided a file (base64 encoded) or raw HTML to upload — NOT when you are writing the document content yourself. For AI-generated documents use upload_created_itinerary_document instead.",
+    description: "Upload a user-supplied file to a Vamoos itinerary. Use this tool ONLY when the user has provided a file (base64 encoded) or raw HTML to upload — NOT when you are writing the document content yourself. For AI-generated documents use upload_created_html_itinerary_document instead.",
     input_schema: {
       type: "object",
       properties: {
