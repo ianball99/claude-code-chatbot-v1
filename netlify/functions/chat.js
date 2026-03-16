@@ -1,7 +1,9 @@
 // netlify/functions/chat.js
-// For non-upload tools: full agentic loop via MCP server.
-// For upload tools: stops and returns pendingUpload to the React app,
-// which POSTs the binary blob directly to the Worker /upload endpoint.
+// Makes a SINGLE Claude API call and returns the result to the client.
+// The client manages the agentic loop:
+//   - pendingUpload   → client handles binary upload directly to Worker /upload
+//   - pendingMcpCalls → client calls /.netlify/functions/mcp-tool for each, then resumes
+//   - text            → final response, loop ends
 //
 // Env vars required:
 //   ANTHROPIC_API_KEY  — Anthropic API key
@@ -98,6 +100,7 @@ Example structure (expand with actual content):
 </html>
 
 Step 3 - Confirm to the user that the trip has been created and the itinerary document has been uploaded to Vamoos.`;
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type",
@@ -245,8 +248,6 @@ export const handler = async (event) => {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "ANTHROPIC_API_KEY not set" }) };
   }
 
-  const mcpUrl = process.env.MCP_SERVER_URL || "";
-
   let body;
   try {
     body = JSON.parse(event.body || "{}");
@@ -266,84 +267,83 @@ export const handler = async (event) => {
     "anthropic-beta": "web-search-2025-03-05",
   };
 
+  // If resuming after a client-side upload or MCP call, inject the tool result(s)
+  const currentMessages = resumeToolResult
+    ? [...messages, { role: "user", content: Array.isArray(resumeToolResult) ? resumeToolResult : [resumeToolResult] }]
+    : [...messages];
+
   try {
-    // If resuming after a client-side upload, inject the tool result
-    let currentMessages = resumeToolResult
-      ? [...messages, { role: "user", content: [{ type: "tool_result", tool_use_id: resumeToolResult.tool_use_id, content: resumeToolResult.content }] }]
-      : [...messages];
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: claudeHeaders,
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 4096,
+        system: SYSTEM,
+        tools: TOOLS,
+        messages: currentMessages,
+      }),
+    });
 
-    const toolCalls = [];
+    const data = await res.json();
 
-    while (true) {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: claudeHeaders,
-        body: JSON.stringify({
-          model: MODEL,
-          max_tokens: 4096,
-          system: SYSTEM,
-          tools: TOOLS,
-          messages: currentMessages,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        return {
-          statusCode: res.status,
-          headers: { ...CORS, "Content-Type": "application/json" },
-          body: JSON.stringify({ error: data.error?.message || JSON.stringify(data) }),
-        };
-      }
-
-      if (data.stop_reason !== "tool_use") {
-        const text = (data.content || [])
-          .filter((b) => b.type === "text")
-          .map((b) => b.text)
-          .join("");
-        return {
-          statusCode: 200,
-          headers: { ...CORS, "Content-Type": "application/json" },
-          body: JSON.stringify({ text, toolCalls }),
-        };
-      }
-
-      // Add assistant message (with tool_use blocks) to history
-      currentMessages = [...currentMessages, { role: "assistant", content: data.content }];
-
-      // Check for upload tools — hand these back to the client
-      const uploadBlock = data.content.find((b) => b.type === "tool_use" && UPLOAD_TOOLS.has(b.name));
-      if (uploadBlock) {
-        return {
-          statusCode: 200,
-          headers: { ...CORS, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            pendingUpload: {
-              toolUseId: uploadBlock.id,
-              name: uploadBlock.name,
-              input: uploadBlock.input,
-            },
-            conversationState: currentMessages,
-            toolCalls,
-          }),
-        };
-      }
-
-      // Non-upload tool — execute via MCP server
-      // web_search blocks are handled server-side by Anthropic; skip them here
-      const toolResults = [];
-      for (const block of data.content) {
-        if (block.type !== "tool_use") continue;
-        if (block.type === "web_search_20250305" || block.name === "web_search") continue;
-        const result = mcpUrl
-          ? await callMcpTool(mcpUrl, block.name, block.input)
-          : JSON.stringify({ error: "MCP_SERVER_URL not configured" });
-        toolCalls.push({ name: block.name, input: block.input, result });
-        toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
-      }
-      currentMessages = [...currentMessages, { role: "user", content: toolResults }];
+    if (!res.ok) {
+      return {
+        statusCode: res.status,
+        headers: { ...CORS, "Content-Type": "application/json" },
+        body: JSON.stringify({ error: data.error?.message || JSON.stringify(data) }),
+      };
     }
+
+    // Final response — no tool calls
+    if (data.stop_reason !== "tool_use") {
+      const text = (data.content || [])
+        .filter((b) => b.type === "text")
+        .map((b) => b.text)
+        .join("");
+      // Return the full conversation state so the client can use it as apiHistory
+      const finalConversationState = [...currentMessages, { role: "assistant", content: data.content }];
+      return {
+        statusCode: 200,
+        headers: { ...CORS, "Content-Type": "application/json" },
+        body: JSON.stringify({ text, conversationState: finalConversationState }),
+      };
+    }
+
+    // Add assistant message to conversation state
+    const nextMessages = [...currentMessages, { role: "assistant", content: data.content }];
+
+    // Check for upload tools — hand back to client for direct binary upload
+    const uploadBlock = data.content.find((b) => b.type === "tool_use" && UPLOAD_TOOLS.has(b.name));
+    if (uploadBlock) {
+      return {
+        statusCode: 200,
+        headers: { ...CORS, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pendingUpload: {
+            toolUseId: uploadBlock.id,
+            name: uploadBlock.name,
+            input: uploadBlock.input,
+          },
+          conversationState: nextMessages,
+        }),
+      };
+    }
+
+    // MCP / other tools — return to client to execute via mcp-tool function
+    // Skip web_search blocks (handled server-side by Anthropic)
+    const mcpBlocks = data.content.filter(
+      (b) => b.type === "tool_use" && b.name !== "web_search" && b.type !== "web_search_20250305"
+    );
+
+    return {
+      statusCode: 200,
+      headers: { ...CORS, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pendingMcpCalls: mcpBlocks.map((b) => ({ id: b.id, name: b.name, input: b.input })),
+        conversationState: nextMessages,
+      }),
+    };
   } catch (e) {
     return {
       statusCode: 500,
@@ -352,78 +352,3 @@ export const handler = async (event) => {
     };
   }
 };
-
-async function callMcpTool(mcpUrl, toolName, toolInput) {
-  try {
-    const initRes = await fetch(mcpUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
-      body: JSON.stringify({
-        jsonrpc: "2.0", id: 1, method: "initialize",
-        params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "claude-chatbot-v1", version: "1.0" } },
-      }),
-    });
-    const sessionId = initRes.headers.get("mcp-session-id");
-    await readFirstSseData(initRes);
-
-    const notifHeaders = { "Content-Type": "application/json" };
-    if (sessionId) notifHeaders["mcp-session-id"] = sessionId;
-    fetch(mcpUrl, {
-      method: "POST",
-      headers: notifHeaders,
-      body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
-    }).catch(() => {});
-
-    const toolHeaders = { "Content-Type": "application/json", Accept: "application/json, text/event-stream" };
-    if (sessionId) toolHeaders["mcp-session-id"] = sessionId;
-    const toolRes = await fetch(mcpUrl, {
-      method: "POST",
-      headers: toolHeaders,
-      body: JSON.stringify({
-        jsonrpc: "2.0", id: 2, method: "tools/call",
-        params: { name: toolName, arguments: toolInput },
-      }),
-    });
-
-    const toolData = await readFirstSseData(toolRes);
-    if (toolData?.result?.content) {
-      return toolData.result.content.map((c) => (c.type === "text" ? c.text : JSON.stringify(c))).join("\n");
-    }
-    if (toolData?.result) return JSON.stringify(toolData.result);
-    if (toolData?.error) return `MCP error: ${JSON.stringify(toolData.error)}`;
-    return "No result returned";
-  } catch (e) {
-    return `Error calling ${toolName}: ${e.message}`;
-  }
-}
-
-async function readFirstSseData(res) {
-  const ct = res.headers.get("content-type") || "";
-  if (!ct.includes("text/event-stream")) {
-    try { return await res.json(); } catch { return null; }
-  }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop();
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          try {
-            const parsed = JSON.parse(line.slice(6));
-            reader.cancel();
-            return parsed;
-          } catch {}
-        }
-      }
-    }
-  } finally {
-    reader.cancel().catch(() => {});
-  }
-  return null;
-}

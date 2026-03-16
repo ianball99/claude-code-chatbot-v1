@@ -296,9 +296,24 @@ export default function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      const text = await res.text();
+      let msg;
+      try { msg = JSON.parse(text).error; } catch { msg = `HTTP ${res.status}`; }
+      throw new Error(msg);
+    }
+    return res.json();
+  };
+
+  const callMcpTool = async (toolName, toolInput) => {
+    const res = await fetch("/.netlify/functions/mcp-tool", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ toolName, toolInput }),
+    });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    return data;
+    if (!res.ok) throw new Error(data.error || `MCP HTTP ${res.status}`);
+    return data.result;
   };
 
   const send = async (text) => {
@@ -341,18 +356,56 @@ export default function App() {
     }
   };
 
-  // Handles the multi-turn loop including client-side uploads
-  const runLoop = async (history, resumeToolResult, images) => {
+  // Client-side agentic loop.
+  // Each call to callChat makes exactly ONE Claude API call.
+  // - pendingMcpCalls: execute via mcp-tool function, then resume
+  // - pendingUpload:   execute binary upload directly to Worker, then resume
+  // - text:            final response, loop ends
+  // accumulatedToolCalls carries tool call cards across loop iterations for display.
+  const runLoop = async (history, resumeToolResult, images, accumulatedToolCalls = []) => {
     const data = await callChat(history, resumeToolResult);
 
-    if (data.pendingUpload) {
-      const { pendingUpload, conversationState, toolCalls } = data;
+    if (data.pendingMcpCalls) {
+      const { pendingMcpCalls, conversationState } = data;
 
-      // Show the tool call card as "uploading"
+      // Show tool cards as in-progress
+      const inProgressCards = pendingMcpCalls.map((tc) => ({ name: tc.name, input: tc.input, result: "…" }));
+      setMessages((prev) => [...prev, { role: "assistant", text: null, toolCalls: inProgressCards }]);
+      setStatusText("Calling tools…");
+
+      // Execute all tool calls (in parallel)
+      const results = await Promise.all(
+        pendingMcpCalls.map((tc) => callMcpTool(tc.name, tc.input).catch((e) => `Error: ${e.message}`))
+      );
+
+      // Update tool cards with results
+      setMessages((prev) => {
+        const updated = [...prev];
+        const last = { ...updated[updated.length - 1] };
+        last.toolCalls = pendingMcpCalls.map((tc, i) => ({ name: tc.name, input: tc.input, result: results[i] }));
+        updated[updated.length - 1] = last;
+        return updated;
+      });
+
+      // Build tool_result blocks for Claude
+      const toolResults = pendingMcpCalls.map((tc, i) => ({
+        type: "tool_result",
+        tool_use_id: tc.id,
+        content: results[i],
+      }));
+
+      const newToolCalls = pendingMcpCalls.map((tc, i) => ({ name: tc.name, input: tc.input, result: results[i] }));
+      setStatusText("Thinking…");
+      await runLoop(conversationState, toolResults, images, [...accumulatedToolCalls, ...newToolCalls]);
+
+    } else if (data.pendingUpload) {
+      const { pendingUpload, conversationState } = data;
+
+      // Show upload card as in-progress
       setMessages((prev) => [...prev, {
         role: "assistant",
         text: null,
-        toolCalls: [...(toolCalls || []), { name: pendingUpload.name, input: pendingUpload.input, result: "uploading…" }],
+        toolCalls: [...accumulatedToolCalls, { name: pendingUpload.name, input: pendingUpload.input, result: "uploading…" }],
       }]);
       setStatusText(pendingUpload.input?.html_content ? "Generating PDF…" : "Uploading file…");
 
@@ -361,46 +414,39 @@ export default function App() {
         ? `Upload successful. File stored at: ${uploadResult.s3url}`
         : `Upload failed: ${uploadResult.error || JSON.stringify(uploadResult.data)}`;
 
-      // Update the tool call card with the result
+      // Update upload card with result
       setMessages((prev) => {
         const updated = [...prev];
-        const last = updated[updated.length - 1];
-        if (last?.toolCalls) {
-          const tcs = [...last.toolCalls];
-          tcs[tcs.length - 1] = { ...tcs[tcs.length - 1], result: resultText };
-          updated[updated.length - 1] = { ...last, toolCalls: tcs };
-        }
+        const last = { ...updated[updated.length - 1] };
+        const tcs = [...last.toolCalls];
+        tcs[tcs.length - 1] = { ...tcs[tcs.length - 1], result: resultText };
+        last.toolCalls = tcs;
+        updated[updated.length - 1] = last;
         return updated;
       });
 
       setStatusText("Thinking…");
+      const uploadToolResult = { type: "tool_result", tool_use_id: pendingUpload.toolUseId, content: resultText };
+      await runLoop(conversationState, [uploadToolResult], images, [
+        ...accumulatedToolCalls,
+        { name: pendingUpload.name, input: pendingUpload.input, result: resultText },
+      ]);
 
-      // Resume the conversation with the upload result
-      await runLoop(
-        conversationState,
-        { tool_use_id: pendingUpload.toolUseId, content: resultText },
-        images
-      );
     } else {
-      // Normal final response
-      const { text: replyText, toolCalls } = data;
-      // When resuming after a client-side upload, `history` ends with the assistant's tool_use message.
-      // The tool_result must be inserted between that and the final reply so the history stays valid.
-      const fullHistory = resumeToolResult
-        ? [
-            ...history,
-            { role: "user", content: [{ type: "tool_result", tool_use_id: resumeToolResult.tool_use_id, content: resumeToolResult.content }] },
-            { role: "assistant", content: replyText },
-          ]
-        : [...history, { role: "assistant", content: replyText }];
-      setApiHistory(fullHistory);
+      // Final text response
+      const { text: replyText, conversationState } = data;
+
+      // conversationState from the server is the full history including any injected tool results
+      // and the final assistant message — use it directly as apiHistory.
+      setApiHistory(conversationState || [...history, { role: "assistant", content: replyText }]);
+
       setMessages((prev) => {
-        // If the last message was a tool call card (from pendingUpload), append text to it
+        // If the last message was a tool card block (no text yet), append reply text to it
         const last = prev[prev.length - 1];
         if (last?.role === "assistant" && last?.toolCalls && !last?.text && replyText) {
           return [...prev.slice(0, -1), { ...last, text: replyText }];
         }
-        return [...prev, { role: "assistant", text: replyText, toolCalls }];
+        return [...prev, { role: "assistant", text: replyText, toolCalls: accumulatedToolCalls.length ? accumulatedToolCalls : undefined }];
       });
     }
   };
