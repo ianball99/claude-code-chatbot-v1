@@ -25,3 +25,4 @@ vamoos mcp project v1
 *   If you need more info then ask for it
 *   Always ensure an action can easily be undone
 *   Incorporate debugging and testing features
+*   to keep it simple always merge the claude/ branch to main immediately after each session (as we've been doing), and delete the stale branches. The branching is effectively invisible to your day-to-day workflow that way.
