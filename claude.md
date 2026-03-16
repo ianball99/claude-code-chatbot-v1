@@ -1,28 +1,53 @@
-# Project Name
+# Project: Vamoos MCP Project v1
 
-vamoos mcp project v1
+## Repos
 
-## Quick Facts
+Both repos are always relevant and available locally:
 
-*   **Stack**: React
+| Repo | Local path | Purpose |
+|------|-----------|---------|
+| `claude-code-chatbot-v1` | `/home/user/claude-code-chatbot-v1` | React chat UI + Netlify function |
+| `remote-mcp-server-authless` | `/home/user/remote-mcp-server-authless` | Cloudflare Workers MCP server |
 
+## GitHub Access
 
-## Key Directories
+Personal token for pushing to GitHub directly (needed because the task proxy blocks pushes to `main`/`master`).
 
-*   There are 2 relevant repos in github you should be familiar with:
-*   claude-code-chatbot-v1
-*   remote-mcp-server-authless
+The user will provide the token at the start of each session, or store it as `GITHUB_TOKEN` in the environment.
 
+Usage:
+```bash
+git push https://<token>@github.com/ianball99/<repo>.git <branch>
+```
 
-## Code Style & Conventions
+## Stack
 
-* 
+- **claude-code-chatbot-v1**: React (Vite), deployed on Netlify. Chat UI calls `/.netlify/functions/chat` which proxies to Anthropic API and the MCP server.
+- **remote-mcp-server-authless**: Cloudflare Workers + Durable Objects, deployed via `wrangler deploy`. Exposes MCP tools for managing Vamoos travel itineraries.
 
-## Important Notes & Gotchas
+## Deployment
 
-*   Before taking action always play back a proposed plan to the user and get confirmation.
-*   Dont guess. If unsure check with user
-*   If you need more info then ask for it
-*   Always ensure an action can easily be undone
-*   Incorporate debugging and testing features
-*   to keep it simple always merge the claude/ branch to main immediately after each session (as we've been doing), and delete the stale branches. The branching is effectively invisible to your day-to-day workflow that way.
+- **Chatbot**: Auto-deploys on push to `main`. Netlify function handles Claude API + MCP calls.
+- **MCP server**: Manual deploy via `wrangler deploy` from `remote-mcp-server-authless`.
+- **Netlify branch**: Only `main` triggers deploys — always merge `claude/` branches to `main` promptly.
+
+## Branch Workflow
+
+The task system creates `claude/...` branches and blocks pushes to `main`/`master` via the proxy. Workflow:
+1. Work on `claude/` branch
+2. Merge to `main`/`master` locally
+3. Push `main`/`master` using the GitHub token above
+4. Delete the `claude/` branch (remote + local)
+
+## Gotchas
+
+- **netlify.toml**: Do NOT add `timeout` under `[functions]` — it causes a Netlify TOML parse failure. The Puppeteer PDF tool that needed it has been retired.
+- **upload_created_html_itinerary_document**: Handled server-side by the MCP worker. It is NOT in `UPLOAD_TOOLS` in `chat.js` and does not need client-side handling in `App.jsx`.
+- **legacy_upload_created_itinerary_document**: Retired tool in the MCP server. Do not re-enable or reference it.
+
+## Working Style
+
+- Always play back a proposed plan and get confirmation before taking action
+- Don't guess — if unsure, ask
+- If more info is needed, ask for it
+- Always ensure actions can easily be undone
