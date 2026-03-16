@@ -368,8 +368,8 @@ export default function App() {
     if (data.pendingMcpCalls) {
       const { pendingMcpCalls, conversationState } = data;
 
-      // Show tool cards as in-progress
-      const inProgressCards = pendingMcpCalls.map((tc) => ({ name: tc.name, input: tc.input, result: "…" }));
+      // Show tool cards as in-progress (same sentinel as upload so card shows ⏳)
+      const inProgressCards = pendingMcpCalls.map((tc) => ({ name: tc.name, input: tc.input, result: "uploading…" }));
       setMessages((prev) => [...prev, { role: "assistant", text: null, toolCalls: inProgressCards }]);
       setStatusText("Calling tools…");
 
@@ -401,11 +401,11 @@ export default function App() {
     } else if (data.pendingUpload) {
       const { pendingUpload, conversationState } = data;
 
-      // Show upload card as in-progress
+      // Show upload card as in-progress (don't re-show already-displayed tool cards)
       setMessages((prev) => [...prev, {
         role: "assistant",
         text: null,
-        toolCalls: [...accumulatedToolCalls, { name: pendingUpload.name, input: pendingUpload.input, result: "uploading…" }],
+        toolCalls: [{ name: pendingUpload.name, input: pendingUpload.input, result: "uploading…" }],
       }]);
       setStatusText(pendingUpload.input?.html_content ? "Generating PDF…" : "Uploading file…");
 
