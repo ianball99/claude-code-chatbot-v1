@@ -61,6 +61,7 @@ Step 2 - Call upload_created_html_itinerary_document with the following fields:
 The server uploads the HTML file directly - you do NOT need to ask the user for any file attachment.
 
 Write the html_content as a complete HTML document:
+- Keep it concise — a 1 to 2 page summary. Do not write long prose. Use bullet points and short entries.
 - Include <!DOCTYPE html>, <html>, <head> (with <meta charset="utf-8"> and a <style> block), and <body> tags
 - Use <h1> for the main title
 - Use <h2> for day/section headings
