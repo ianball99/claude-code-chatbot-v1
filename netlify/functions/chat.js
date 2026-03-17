@@ -202,7 +202,7 @@ const TOOLS = [
     },
   },
   {
-    name: "upload_gpx_track",
+    name: "upload_gpx_and_attach_to_itinerary",
     description: "Upload a GPX track file to Vamoos as a Point of Interest (POI) and attach it to a trip. The track will appear on the map in the Vamoos app. Use this when the user provides or pastes a GPX file.",
     input_schema: {
       type: "object",
