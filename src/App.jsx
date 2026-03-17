@@ -115,8 +115,12 @@ function Bubble({ msg }) {
         border: isUser ? "none" : "1px solid rgba(255,255,255,0.08)",
       }}>
         {msg.images?.map((img, j) => (
-          <img key={j} src={img.dataUrl} alt="attached"
-            style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 8, display: "block" }} />
+          img.isGpx
+            ? <div key={j} style={{ fontSize: 12, color: "rgba(26,18,8,0.7)", marginBottom: 6 }}>📍 {img.name}</div>
+            : img.isImage
+              ? <img key={j} src={img.dataUrl} alt="attached"
+                  style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 8, display: "block" }} />
+              : null
         ))}
         {msg.toolCalls?.map((tc, j) => <ToolCallCard key={j} tc={tc} />)}
         {msg.text && (
@@ -329,7 +333,9 @@ export default function App() {
 
     const contentParts = [];
     images.forEach((img) => {
-      if (img.isImage) {
+      if (img.isGpx) {
+        contentParts.push({ type: "text", text: `[GPX file attached: ${img.name}]\n${img.textContent}` });
+      } else if (img.isImage) {
         contentParts.push({ type: "image", source: { type: "base64", media_type: img.type, data: img.base64 } });
       } else {
         contentParts.push({ type: "text", text: `[Attached file: ${img.name} (${img.type})]` });
@@ -454,11 +460,18 @@ export default function App() {
   const handleFiles = (files) => {
     Array.from(files).forEach((file) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target.result;
-        setPending((p) => [...p, { dataUrl, base64: dataUrl.split(",")[1], type: file.type, name: file.name, isImage: file.type.startsWith("image/") }]);
-      };
-      reader.readAsDataURL(file);
+      if (file.name.endsWith(".gpx")) {
+        reader.onload = (e) => {
+          setPending((p) => [...p, { textContent: e.target.result, type: "application/gpx+xml", name: file.name, isGpx: true }]);
+        };
+        reader.readAsText(file);
+      } else {
+        reader.onload = (e) => {
+          const dataUrl = e.target.result;
+          setPending((p) => [...p, { dataUrl, base64: dataUrl.split(",")[1], type: file.type, name: file.name, isImage: file.type.startsWith("image/") }]);
+        };
+        reader.readAsDataURL(file);
+      }
     });
   };
 
@@ -644,7 +657,7 @@ export default function App() {
               onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.4)")}
             >
               ＋
-              <input type="file" accept="image/*,application/pdf" multiple
+              <input type="file" accept="image/*,application/pdf,.gpx" multiple
                 style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
                 onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
               />
