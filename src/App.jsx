@@ -296,7 +296,7 @@ export default function App() {
     try {
       const res = await fetch(`${workerUrl}/upload`, { method: "POST", body: fd });
       const data = await res.json();
-      return { ok: data.ok, s3url: data.s3url, data };
+      return { ok: data.ok, s3url: data.s3url, message: data.message, error: data.error, data };
     } catch (e) {
       return { ok: false, error: e.message };
     }
