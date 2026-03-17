@@ -258,6 +258,13 @@ export default function App() {
       }
       filename = inp.filename || "itinerary.pdf";
       contentType = "application/pdf";
+    } else if (name === "upload_gpx_and_attach_to_itinerary") {
+      // GPX path — read text content from attached .gpx file
+      const img = images.find((i) => i.isGpx);
+      if (!img) return { ok: false, error: "No GPX file attached" };
+      blob = new Blob([img.textContent], { type: "application/gpx+xml" });
+      filename = img.name;
+      contentType = "application/gpx+xml";
     } else {
       // File attachment path
       const img = images[0];
@@ -282,6 +289,8 @@ export default function App() {
     if (name === "upload_document") {
       fd.append("upload_type", "document");
       fd.append("document_name", inp.document_name || "Document");
+    } else if (name === "upload_gpx_and_attach_to_itinerary") {
+      fd.append("upload_type", "gpx");
     }
 
     try {
@@ -334,7 +343,7 @@ export default function App() {
     const contentParts = [];
     images.forEach((img) => {
       if (img.isGpx) {
-        contentParts.push({ type: "text", text: `[GPX file attached: ${img.name}]\n${img.textContent}` });
+        contentParts.push({ type: "text", text: `[GPX file attached: ${img.name}]` });
       } else if (img.isImage) {
         contentParts.push({ type: "image", source: { type: "base64", media_type: img.type, data: img.base64 } });
       } else {
@@ -417,7 +426,9 @@ export default function App() {
 
       const uploadResult = await executeUpload(pendingUpload, images);
       const resultText = uploadResult.ok
-        ? `Upload successful. File stored at: ${uploadResult.s3url}`
+        ? uploadResult.s3url
+          ? `Upload successful. File stored at: ${uploadResult.s3url}`
+          : `Upload successful. ${uploadResult.message || JSON.stringify(uploadResult.data)}`
         : `Upload failed: ${uploadResult.error || JSON.stringify(uploadResult.data)}`;
 
       // Update upload card with result
