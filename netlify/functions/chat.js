@@ -100,19 +100,17 @@ Example structure (expand with actual content):
 </body>
 </html>
 
-Step 3 - If the user has attached an image and asked to use it as a background, call upload_background_image now:
-  - reference_code and vamoos_id from the trip
-  - departure_date and return_date
-  - filename and content_type if known (optional — can be omitted)
-  You do NOT need to extract or encode the image file — the file handling is completely automatic. Just provide the trip metadata and call the tool.
+Step 3 - If the user has attached an image to use as a background, call upload_background_image with the trip metadata: reference_code, vamoos_id, departure_date, return_date. Do NOT ask the user for a filename or try to read/encode the image — the file is handled automatically by the system.
 
-If the user asks to add a background image at any other point in the conversation, follow the same approach: call upload_background_image with the trip metadata. If you do not yet have the vamoos_id, call get_itinerary first to retrieve it.
+Step 4 - Confirm to the user that the trip has been created and all uploads are complete.
 
-If the user attaches a .gpx file and asks to add it to a trip, call upload_gpx_and_attach_to_itinerary with the trip metadata (reference_code, vamoos_id, departure_date, return_date). File handling is automatic — do not try to read or encode the file.
+File upload rules — follow these at all times, not just during the upload workflow:
 
-If the user attaches a file and asks to add it to a trip as a document, call upload_document with the trip metadata, a document_name, and optionally filename and content_type if known. File handling is automatic — do not try to read or encode the file.
+- If the user attaches an IMAGE and wants it as a trip background: call upload_background_image immediately with trip metadata (reference_code, vamoos_id, departure_date, return_date). Never ask the user for the filename — it is detected automatically. Never say you cannot process image files. If you do not yet have the vamoos_id, call get_itinerary first.
 
-Step 4 - Confirm to the user that the trip has been created and all uploads are complete.`;
+- If the user attaches a .GPX file: call upload_gpx_and_attach_to_itinerary with trip metadata. File handling is automatic.
+
+- If the user attaches any other file to add as a document: call upload_document with trip metadata and a document_name. File handling is automatic.`;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
