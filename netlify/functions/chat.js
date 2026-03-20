@@ -100,7 +100,15 @@ Example structure (expand with actual content):
 </body>
 </html>
 
-Step 3 - Confirm to the user that the trip has been created and the itinerary document has been uploaded to Vamoos.`;
+Step 3 - If the user has attached an image and asked to use it as a background, call upload_background_image now:
+  - reference_code and vamoos_id from the trip
+  - departure_date and return_date
+  - filename and content_type if known (optional — can be omitted)
+  You do NOT need to extract or encode the image file — the file handling is completely automatic. Just provide the trip metadata and call the tool.
+
+If the user asks to add a background image at any other point in the conversation, follow the same approach: call upload_background_image with the trip metadata. If you do not yet have the vamoos_id, call get_itinerary first to retrieve it.
+
+Step 4 - Confirm to the user that the trip has been created and all uploads are complete.`;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
