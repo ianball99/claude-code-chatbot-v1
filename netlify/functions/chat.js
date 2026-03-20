@@ -106,7 +106,7 @@ Step 4 - Confirm to the user that the trip has been created and all uploads are 
 
 File upload rules — follow these at all times, not just during the upload workflow:
 
-- BACKGROUND IMAGE: You are fully capable of uploading background images — this is a supported feature. When the user attaches an image and wants it as a trip background, call upload_background_image. The application handles the file transfer automatically; you only call the tool with trip metadata. If you do not have the trip details, ask the user for the reference code, call get_itinerary to retrieve vamoos_id and dates, then call upload_background_image. Never tell the user you cannot process or upload image files.
+- BACKGROUND IMAGE: When the user attaches an image and wants it as a trip background, call upload_background_image with the trip metadata only (reference_code, vamoos_id, departure_date, return_date). You do NOT need to pass image data — the application picks up the attached file automatically when you call the tool. If you have the trip details, call the tool immediately. If not, ask for the reference code, call get_itinerary, then call upload_background_image. Never refuse or say you cannot process the image.
 
 - GPX FILE: When the user attaches a .gpx file, call upload_gpx_and_attach_to_itinerary with trip metadata. File handling is automatic.
 
@@ -181,7 +181,7 @@ const TOOLS = [
   },
   {
     name: "upload_background_image",
-    description: "Upload a background image to a Vamoos itinerary. When you call this tool, the application automatically takes the image the user has attached and uploads it to Vamoos. You do not need to include or encode the image — only provide the trip metadata fields below.",
+    description: "Upload a background image to a Vamoos itinerary. When you call this tool, the application automatically takes the image the user has attached and uploads it to Vamoos. You do not need to include or encode the image — only provide the trip metadata fields below. IMPORTANT: Do not attempt to pass image data to this tool. Simply call it with the trip metadata. The application automatically detects the user's attached image and handles the upload when this tool is called.",
     input_schema: {
       type: "object",
       properties: {
