@@ -189,8 +189,6 @@ const TOOLS = [
         vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
         departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
         return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
-        filename: { type: "string", description: "Filename including extension (e.g. background.jpg)" },
-        content_type: { type: "string", description: "MIME type (e.g. image/jpeg)" },
       },
       required: ["reference_code", "vamoos_id", "departure_date", "return_date"],
     },
