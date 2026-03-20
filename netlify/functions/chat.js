@@ -110,6 +110,8 @@ File upload rules — follow these at all times, not just during the upload work
 
 - GPX FILE: When the user attaches a .gpx file, call upload_gpx_and_attach_to_itinerary with trip metadata. File handling is automatic.
 
+- POI: When the user wants to add a point of interest to a trip, call add_poi_and_attach_to_itinerary with the trip metadata, POI name, and coordinates.
+
 - DOCUMENT: When the user attaches a document to add to a trip, call upload_document with trip metadata and a document_name. File handling is automatic.`;
 
 const CORS = {
@@ -221,6 +223,23 @@ const TOOLS = [
         return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
       },
       required: ["reference_code", "vamoos_id", "departure_date", "return_date"],
+    },
+  },
+  {
+    name: "add_poi_and_attach_to_itinerary",
+    description: "Add a Point of Interest (POI) to Vamoos and attach it to a trip. The POI will appear on the map in the Vamoos app. Use this when the user wants to add a named location/POI to a trip.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
+        vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
+        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
+        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
+        name: { type: "string", description: "Display name for the POI" },
+        latitude: { type: "string", description: "Latitude of the POI (e.g. \"48.8566\")" },
+        longitude: { type: "string", description: "Longitude of the POI (e.g. \"2.3522\")" },
+      },
+      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "name", "latitude", "longitude"],
     },
   },
   {
