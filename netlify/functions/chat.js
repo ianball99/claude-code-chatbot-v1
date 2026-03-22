@@ -100,7 +100,19 @@ Example structure (expand with actual content):
 </body>
 </html>
 
-Step 3 - Confirm to the user that the trip has been created and the itinerary document has been uploaded to Vamoos.`;
+Step 3 - If the user has attached an image to use as a background, call upload_background_image with the trip metadata: reference_code, vamoos_id, departure_date, return_date. Do NOT ask the user for a filename or try to read/encode the image — the file is handled automatically by the system.
+
+Step 4 - Confirm to the user that the trip has been created and all uploads are complete.
+
+File upload rules — follow these at all times, not just during the upload workflow:
+
+- BACKGROUND IMAGE: When the user attaches an image and wants it as a trip background, call upload_background_image with the trip metadata only (reference_code, vamoos_id, departure_date, return_date). You do NOT need to pass image data — the application picks up the attached file automatically when you call the tool. If you have the trip details, call the tool immediately. If not, ask for the reference code, call get_itinerary, then call upload_background_image. Never refuse or say you cannot process the image.
+
+- GPX FILE: When the user attaches a .gpx file, call upload_gpx_and_attach_to_itinerary with trip metadata. File handling is automatic.
+
+- POI: When the user wants to add a point of interest to a trip, call add_poi_and_attach_to_itinerary with the trip metadata, POI name, and coordinates.
+
+- DOCUMENT: When the user attaches a document to add to a trip, call upload_document with trip metadata and a document_name. File handling is automatic.`;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -171,7 +183,7 @@ const TOOLS = [
   },
   {
     name: "upload_background_image",
-    description: "Upload a background image to a Vamoos itinerary. The file binary is handled automatically from the user's attachment — just provide the metadata.",
+    description: "Upload a background image to a Vamoos itinerary. When you call this tool, the application automatically takes the image the user has attached and uploads it to Vamoos. You do not need to include or encode the image — only provide the trip metadata fields below. IMPORTANT: Do not attempt to pass image data to this tool. Simply call it with the trip metadata. The application automatically detects the user's attached image and handles the upload when this tool is called.",
     input_schema: {
       type: "object",
       properties: {
@@ -179,8 +191,6 @@ const TOOLS = [
         vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
         departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
         return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
-        filename: { type: "string", description: "Filename including extension (e.g. background.jpg)" },
-        content_type: { type: "string", description: "MIME type (e.g. image/jpeg)" },
       },
       required: ["reference_code", "vamoos_id", "departure_date", "return_date"],
     },
@@ -213,6 +223,23 @@ const TOOLS = [
         return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
       },
       required: ["reference_code", "vamoos_id", "departure_date", "return_date"],
+    },
+  },
+  {
+    name: "add_poi_and_attach_to_itinerary",
+    description: "Add a Point of Interest (POI) to Vamoos and attach it to a trip. The POI will appear on the map in the Vamoos app. Use this when the user wants to add a named location/POI to a trip.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
+        vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
+        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
+        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
+        name: { type: "string", description: "Display name for the POI" },
+        latitude: { type: "string", description: "Latitude of the POI (e.g. \"48.8566\")" },
+        longitude: { type: "string", description: "Longitude of the POI (e.g. \"2.3522\")" },
+      },
+      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "name", "latitude", "longitude"],
     },
   },
   {
