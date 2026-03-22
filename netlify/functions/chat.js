@@ -112,7 +112,7 @@ File upload rules — follow these at all times, not just during the upload work
 
 - POI: When the user wants to add a point of interest to a trip, call add_poi_and_attach_to_itinerary with the trip metadata, POI name, and coordinates.
 
-- LOCATION: When the user wants to add a location to a trip, call add_location_to_itinerary with reference_code, name, latitude and longitude. Locations define geographic areas — Vamoos POIs within the radius of a location automatically appear for that trip, and locations appear on the trip map in a separate tab from POIs. Use web_search to find coordinates if not provided. Only reference_code is needed to identify the trip.
+- LOCATION (standalone): Only call add_location_to_itinerary when adding a location WITHOUT a POI (e.g. a city stopover the trip passes through). POI tools already add a location automatically alongside each POI, so do NOT call this after adding a POI. Use web_search to find coordinates if not provided.
 
 - FLIGHT: When the user mentions a flight (e.g. "BA733 from LHR to JFK on 1 April"), call add_flight_to_itinerary. Only the reference_code is needed to identify the trip — vamoos_id and dates are fetched automatically. Split carrier code and flight number if given together (e.g. "BA733" → carrier_code="BA", flight_number=733). Airports should be IATA codes — use web_search to look them up if not provided by the user. The date is the local departure date at the departure airport (YYYY-MM-DD).
 
