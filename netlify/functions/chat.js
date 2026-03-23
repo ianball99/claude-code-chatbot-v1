@@ -112,6 +112,10 @@ File upload rules — follow these at all times, not just during the upload work
 
 - POI: When the user wants to add a point of interest to a trip, call add_poi_and_attach_to_itinerary with the trip metadata, POI name, and coordinates.
 
+- LOCATION (standalone): Only call add_location_to_itinerary when adding a location WITHOUT a POI (e.g. a city stopover the trip passes through). POI tools already add a location automatically alongside each POI, so do NOT call this after adding a POI. Use web_search to find coordinates if not provided.
+
+- FLIGHT: When the user mentions a flight (e.g. "BA733 from LHR to JFK on 1 April"), call add_flight_to_itinerary. Only the reference_code is needed to identify the trip — vamoos_id and dates are fetched automatically. Split carrier code and flight number if given together (e.g. "BA733" → carrier_code="BA", flight_number=733). Airports should be IATA codes — use web_search to look them up if not provided by the user. The date is the local departure date at the departure airport (YYYY-MM-DD).
+
 - DOCUMENT: When the user attaches a document to add to a trip, call upload_document with trip metadata and a document_name. File handling is automatic.`;
 
 const CORS = {
@@ -240,6 +244,38 @@ const TOOLS = [
         longitude: { type: "string", description: "Longitude of the POI (e.g. \"2.3522\")" },
       },
       required: ["reference_code", "vamoos_id", "departure_date", "return_date", "name", "latitude", "longitude"],
+    },
+  },
+  {
+    name: "add_location_to_itinerary",
+    description: "Add a location to a Vamoos trip. Locations define geographic areas for the trip — any Vamoos POIs within the radius of a location will automatically appear for that trip. Locations also appear on the trip map in a separate tab from POIs. Only reference_code is needed to identify the trip. Existing locations are preserved. Use web_search to find coordinates if not provided.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
+        name: { type: "string", description: "Display name for the location (e.g. 'Rome', 'Heathrow Airport')" },
+        latitude: { type: "string", description: "Latitude (e.g. '41.9028')" },
+        longitude: { type: "string", description: "Longitude (e.g. '12.4964')" },
+        description: { type: "string", description: "Optional description shown in the app" },
+        icon_id: { type: "number", description: "Optional icon ID" },
+      },
+      required: ["reference_code", "name", "latitude", "longitude"],
+    },
+  },
+  {
+    name: "add_flight_to_itinerary",
+    description: "Look up a flight by carrier code, flight number, airports and date, then attach it to a Vamoos trip. Only the reference_code is needed to identify the trip — vamoos_id, departure_date and return_date are fetched automatically. Carrier code and flight number may be given together (e.g. 'BA733') — split before calling: carrier_code='BA', flight_number=733. Use web_search to look up IATA airport codes if not provided. Existing flights on the trip are preserved.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
+        carrier_code: { type: "string", description: "Airline IATA (e.g. BA) or ICAO (e.g. BAW) code — letters only, no digits" },
+        flight_number: { type: "number", description: "Flight number — digits only, no carrier prefix (e.g. 733 for BA733)" },
+        departure_airport: { type: "string", description: "IATA (e.g. LHR) or ICAO code of departure airport" },
+        arrival_airport: { type: "string", description: "IATA (e.g. JFK) or ICAO code of arrival airport" },
+        date: { type: "string", description: "Date of flight departure (local time at departure airport), YYYY-MM-DD" },
+      },
+      required: ["reference_code", "carrier_code", "flight_number", "departure_airport", "arrival_airport", "date"],
     },
   },
   {
