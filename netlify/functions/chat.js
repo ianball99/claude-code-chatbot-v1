@@ -116,6 +116,8 @@ File upload rules — follow these at all times, not just during the upload work
 
 - FLIGHT: When the user mentions a flight (e.g. "BA733 from LHR to JFK on 1 April"), call add_flight_to_itinerary. Only the reference_code is needed to identify the trip — vamoos_id and dates are fetched automatically. Split carrier code and flight number if given together (e.g. "BA733" → carrier_code="BA", flight_number=733). Airports should be IATA codes — use web_search to look them up if not provided by the user. The date is the local departure date at the departure airport (YYYY-MM-DD).
 
+- PERSON: When the user wants to add a person (traveller/passenger) to a trip, call add_person_to_itinerary with the reference_code, name, and email. Only the reference_code is needed to identify the trip — other trip fields are fetched automatically. If email is not provided, ask for it before calling the tool.
+
 - DOCUMENT: When the user attaches a document to add to a trip, call upload_document with trip metadata and a document_name. File handling is automatic.`;
 
 const CORS = {
@@ -276,6 +278,19 @@ const TOOLS = [
         date: { type: "string", description: "Date of flight departure (local time at departure airport), YYYY-MM-DD" },
       },
       required: ["reference_code", "carrier_code", "flight_number", "departure_airport", "arrival_airport", "date"],
+    },
+  },
+  {
+    name: "add_person_to_itinerary",
+    description: "Add a person (traveller/passenger) to a Vamoos itinerary by name and email. Only the reference_code is needed to identify the trip — other trip fields are fetched automatically. Existing travellers are preserved. Duplicate emails (case-insensitive) are skipped.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
+        name: { type: "string", description: "Full name of the traveller (e.g. 'Ian Ball')" },
+        email: { type: "string", description: "Email address of the traveller" },
+      },
+      required: ["reference_code", "name", "email"],
     },
   },
   {
