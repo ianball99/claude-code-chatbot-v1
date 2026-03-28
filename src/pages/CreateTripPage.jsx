@@ -70,6 +70,7 @@ export default function CreateTripPage() {
   const [startDateInput, setStartDateInput] = useState("");
   const [endDateInput, setEndDateInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState("");
   const [error, setError] = useState("");
 
   const startDateIso = parseDate(startDateInput);
@@ -90,26 +91,68 @@ export default function CreateTripPage() {
 
     try {
       // Step 1: create the trip
-      await callMcpTool("create_itinerary", {
+      setLoadingStep("Creating trip…");
+      const createResult = await callMcpTool("create_itinerary", {
         reference_code: refCode,
         departure_date: startDateIso,
         return_date: endDateIso,
         field1: title.trim(),
       });
 
-      // Step 2: add the creator as a person (critical)
-      await callMcpTool("add_person_to_itinerary", {
-        reference_code: refCode,
-        name: "mcp chat creator",
-        email,
-      });
+      // Parse vamoos_id from the create response (needed for background upload)
+      let vamoosId = null;
+      try {
+        const parsed = JSON.parse(createResult);
+        vamoosId = parsed.vamoos_id ?? parsed.id ?? null;
+      } catch {}
 
+      // Step 2: add person + fetch background image in parallel
+      setLoadingStep("Adding details…");
+      const [, imageResult] = await Promise.allSettled([
+        callMcpTool("add_person_to_itinerary", {
+          reference_code: refCode,
+          name: "mcp chat creator",
+          email,
+        }),
+        fetch("/.netlify/functions/generate-trip-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: title.trim() }),
+        }).then((r) => r.json()),
+      ]);
+
+      // Step 3: upload background if we have both vamoos_id and a valid image
+      if (
+        vamoosId &&
+        imageResult.status === "fulfilled" &&
+        imageResult.value?.imageData
+      ) {
+        setLoadingStep("Uploading background…");
+        const { imageData, contentType, filename } = imageResult.value;
+        try {
+          await callMcpTool("upload_background_image", {
+            reference_code: refCode,
+            vamoos_id: vamoosId,
+            departure_date: startDateIso,
+            return_date: endDateIso,
+            file_data: imageData,
+            filename,
+            content_type: contentType,
+          });
+        } catch (bgErr) {
+          // Non-fatal — trip was created, background just didn't upload
+          console.warn("Background upload failed:", bgErr.message);
+        }
+      }
+
+      setLoadingStep("Opening trip…");
       navigate(`/trip/${encodeURIComponent(refCode)}`, {
         state: { title: title.trim(), startDate: startDateIso },
       });
     } catch (e) {
       setError(e.message || "Failed to create trip. Please try again.");
       setLoading(false);
+      setLoadingStep("");
     }
   };
 
@@ -203,7 +246,7 @@ export default function CreateTripPage() {
             disabled={loading}
             className="w-full rounded-full bg-[#f57c00] py-3 text-lg font-medium text-white hover:bg-[#e06c00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Creating trip…" : "Create Trip"}
+            {loading ? (loadingStep || "Creating trip…") : "Create Trip"}
           </button>
         </form>
       </div>
