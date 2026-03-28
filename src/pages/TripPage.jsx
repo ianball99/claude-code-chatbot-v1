@@ -113,6 +113,19 @@ export default function TripPage() {
   const [summaryHtml, setSummaryHtml] = useState("");
   const [tripTitle, setTripTitle] = useState(stateTitle || decodedRef);
 
+  const formatDetails = async (rawJson) => {
+    try {
+      const res = await fetch("/.netlify/functions/format-trip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripJson: rawJson }),
+      });
+      const data = await res.json();
+      if (res.ok && data.text) return data.text;
+    } catch {}
+    return rawJson; // fallback to raw
+  };
+
   const containerRef = useRef(null);
   const isDragging = useRef(false);
 
@@ -121,14 +134,17 @@ export default function TripPage() {
     if (!decodedRef) return;
     setDetailsLoading(true);
     callMcpTool("get_itinerary", { reference_code: decodedRef })
-      .then((result) => {
-        setDetailsContent(result);
-        // Try to extract a nicer title
-        try {
-          const parsed = JSON.parse(result);
-          const t = parsed.title || parsed.name || parsed.destination;
-          if (t) setTripTitle(t);
-        } catch {}
+      .then(async (result) => {
+        // Extract title from field1 if not already set from nav state
+        if (!stateTitle) {
+          try {
+            const parsed = JSON.parse(result);
+            const t = parsed.field1 || parsed.title || parsed.name;
+            if (t) setTripTitle(t);
+          } catch {}
+        }
+        const formatted = await formatDetails(result);
+        setDetailsContent(formatted);
       })
       .catch((e) => setDetailsContent(`Error loading trip: ${e.message}`))
       .finally(() => setDetailsLoading(false));
@@ -144,7 +160,10 @@ export default function TripPage() {
       ];
       if (mutatingTools.includes(toolName)) {
         callMcpTool("get_itinerary", { reference_code: decodedRef })
-          .then((result) => setDetailsContent(result))
+          .then(async (result) => {
+            const formatted = await formatDetails(result);
+            setDetailsContent(formatted);
+          })
           .catch(() => {});
       }
     },
