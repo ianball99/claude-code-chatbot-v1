@@ -18,7 +18,7 @@ function parseTrips(result) {
   try {
     const parsed = JSON.parse(result);
     // Handle array directly or wrapped object
-    const arr = Array.isArray(parsed) ? parsed : (parsed.results || parsed.itineraries || parsed.trips || parsed.data || []);
+    const arr = Array.isArray(parsed) ? parsed : (parsed.items || parsed.results || parsed.itineraries || parsed.trips || parsed.data || []);
     return arr.map((t) => ({
       refCode: t.reference_code || t.referenceCode || t.ref_code || t.code || "",
       title: t.field1 || t.reference_code || "Untitled",
