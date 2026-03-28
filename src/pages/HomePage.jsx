@@ -102,7 +102,7 @@ export default function HomePage() {
 
         {/* Add new trip */}
         <button
-          onClick={() => navigate("/add-trip")}
+          onClick={() => navigate("/create-trip")}
           className="flex items-center gap-4 w-full px-4 py-5 text-[#f57c00] hover:opacity-80 transition-opacity"
         >
           <Plus className="h-5 w-5" strokeWidth={2} />

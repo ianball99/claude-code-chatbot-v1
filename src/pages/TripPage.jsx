@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import ChatPanel from "../components/ChatPanel";
 
@@ -99,14 +99,19 @@ function TripLayout({
 export default function TripPage() {
   const { refCode } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const decodedRef = decodeURIComponent(refCode || "");
+
+  // Use title/startDate passed via navigation state (from CreateTripPage) if available
+  const stateTitle = location.state?.title || "";
+  const stateStartDate = location.state?.startDate || "";
 
   const [activeTab, setActiveTab] = useState("Details");
   const [splitPosition, setSplitPosition] = useState(50);
   const [detailsContent, setDetailsContent] = useState("");
   const [detailsLoading, setDetailsLoading] = useState(true);
   const [summaryHtml, setSummaryHtml] = useState("");
-  const [tripTitle, setTripTitle] = useState(decodedRef);
+  const [tripTitle, setTripTitle] = useState(stateTitle || decodedRef);
 
   const containerRef = useRef(null);
   const isDragging = useRef(false);
@@ -188,7 +193,14 @@ export default function TripPage() {
         <button onClick={() => navigate("/home")} className="text-white hover:text-[#f57c00] transition-colors">
           <ArrowLeft className="h-6 w-6" strokeWidth={2} />
         </button>
-        <h1 className="text-base font-medium text-white truncate">{tripTitle}</h1>
+        <h1 className="text-base font-medium text-white truncate">
+          {tripTitle}
+          {stateStartDate && (
+            <span className="ml-2 text-sm font-normal text-[#a0a0a0]">
+              {new Date(stateStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+            </span>
+          )}
+        </h1>
         <span className="text-[#707070] text-xs font-mono ml-auto shrink-0">{decodedRef}</span>
       </div>
 
