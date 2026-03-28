@@ -558,7 +558,6 @@ export default function ChatPanel({
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="text-4xl mb-4">🌍</div>
             <div className="text-white/70 font-serif text-lg mb-1">How can I help you?</div>
             <div className="text-white/30 text-sm italic">
               Manage Vamoos itineraries — create, update, and upload files.
