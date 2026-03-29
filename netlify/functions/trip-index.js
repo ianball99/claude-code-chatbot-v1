@@ -53,79 +53,117 @@ export const handler = async (event) => {
     };
   }
 
-  const store = getStore("trip-index");
   const key = email.toLowerCase().trim();
 
-  // Load existing list for this user
-  let trips = [];
   try {
-    const raw = await store.get(key);
-    if (raw) {
-      trips = JSON.parse(raw);
+    const store = getStore("trip-index");
+
+    // Load existing list for this user
+    let trips = [];
+    try {
+      const raw = await store.get(key);
+      if (raw) {
+        trips = JSON.parse(raw);
+      }
+    } catch {
+      // No existing entry or parse error — start fresh
+      trips = [];
     }
-  } catch {
-    // No existing entry or parse error — start fresh
-    trips = [];
-  }
 
-  if (action === "get") {
-    return {
-      statusCode: 200,
-      headers: { ...CORS, "Content-Type": "application/json" },
-      body: JSON.stringify({ trips }),
-    };
-  }
-
-  if (action === "add") {
-    const { trip } = body;
-    if (!trip || !trip.refCode) {
+    if (action === "get") {
       return {
-        statusCode: 400,
-        headers: CORS,
-        body: JSON.stringify({ error: "trip.refCode is required for action=add" }),
+        statusCode: 200,
+        headers: { ...CORS, "Content-Type": "application/json" },
+        body: JSON.stringify({ trips }),
       };
     }
 
-    // Upsert: replace existing entry with same refCode, or append
-    const existing = trips.findIndex((t) => t.refCode === trip.refCode);
-    if (existing >= 0) {
-      trips[existing] = trip;
-    } else {
-      trips.push(trip);
-    }
+    if (action === "add") {
+      const { trip } = body;
+      if (!trip || !trip.refCode) {
+        return {
+          statusCode: 400,
+          headers: CORS,
+          body: JSON.stringify({ error: "trip.refCode is required for action=add" }),
+        };
+      }
 
-    await store.set(key, JSON.stringify(trips));
+      // Upsert: replace existing entry with same refCode, or append
+      const existing = trips.findIndex((t) => t.refCode === trip.refCode);
+      if (existing >= 0) {
+        trips[existing] = trip;
+      } else {
+        trips.push(trip);
+      }
 
-    return {
-      statusCode: 200,
-      headers: { ...CORS, "Content-Type": "application/json" },
-      body: JSON.stringify({ trips }),
-    };
-  }
+      try {
+        await store.set(key, JSON.stringify(trips));
+      } catch (setErr) {
+        // Return success with the in-memory state even if persist failed
+        return {
+          statusCode: 200,
+          headers: { ...CORS, "Content-Type": "application/json" },
+          body: JSON.stringify({ trips, warning: `Persist failed: ${setErr.message}` }),
+        };
+      }
 
-  if (action === "remove") {
-    const { refCode } = body;
-    if (!refCode) {
       return {
-        statusCode: 400,
-        headers: CORS,
-        body: JSON.stringify({ error: "refCode is required for action=remove" }),
+        statusCode: 200,
+        headers: { ...CORS, "Content-Type": "application/json" },
+        body: JSON.stringify({ trips }),
       };
     }
 
-    trips = trips.filter((t) => t.refCode !== refCode);
-    await store.set(key, JSON.stringify(trips));
+    if (action === "remove") {
+      const { refCode } = body;
+      if (!refCode) {
+        return {
+          statusCode: 400,
+          headers: CORS,
+          body: JSON.stringify({ error: "refCode is required for action=remove" }),
+        };
+      }
+
+      trips = trips.filter((t) => t.refCode !== refCode);
+
+      try {
+        await store.set(key, JSON.stringify(trips));
+      } catch (setErr) {
+        return {
+          statusCode: 200,
+          headers: { ...CORS, "Content-Type": "application/json" },
+          body: JSON.stringify({ trips, warning: `Persist failed: ${setErr.message}` }),
+        };
+      }
+
+      return {
+        statusCode: 200,
+        headers: { ...CORS, "Content-Type": "application/json" },
+        body: JSON.stringify({ trips }),
+      };
+    }
 
     return {
-      statusCode: 200,
+      statusCode: 400,
+      headers: CORS,
+      body: JSON.stringify({ error: `Unknown action: ${action}` }),
+    };
+
+  } catch (err) {
+    // Top-level catch — blobs unavailable or unexpected error.
+    // For "get" return empty trips so the page loads cleanly.
+    // For mutations return the error so callers know the write didn't persist.
+    if (action === "get") {
+      return {
+        statusCode: 200,
+        headers: { ...CORS, "Content-Type": "application/json" },
+        body: JSON.stringify({ trips: [], warning: `Blobs unavailable: ${err.message}` }),
+      };
+    }
+    return {
+      statusCode: 500,
       headers: { ...CORS, "Content-Type": "application/json" },
-      body: JSON.stringify({ trips }),
+      body: JSON.stringify({ error: `Blobs error: ${err.message}` }),
     };
   }
-
-  return {
-    statusCode: 400,
-    headers: CORS,
-    body: JSON.stringify({ error: `Unknown action: ${action}` }),
-  };
 };
