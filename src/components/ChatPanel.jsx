@@ -182,10 +182,11 @@ function SettingsPanel({ workerUrl, onSave, onClose }) {
 // ---------------------------------------------------------------------------
 // Main ChatPanel component
 // Props:
-//   initialSystemContext  - string prepended to first message (e.g. trip refCode)
-//   onHtmlGenerated(html) - called when HTML itinerary doc is available
+//   initialSystemContext     - string prepended to first message (e.g. trip refCode)
+//   onHtmlGenerated(html)    - called when HTML itinerary doc is available
 //   onTripMutated(name, result) - called after each MCP tool call completes
-//   onRefCodeKnown(refCode) - called when create_itinerary result contains a ref code
+//   onRefCodeKnown(refCode)  - called when create_itinerary result contains a ref code
+//   onPersonAdded(email, refCode) - called when add_person_to_itinerary completes
 // ---------------------------------------------------------------------------
 
 export default function ChatPanel({
@@ -193,6 +194,7 @@ export default function ChatPanel({
   onHtmlGenerated,
   onTripMutated,
   onRefCodeKnown,
+  onPersonAdded,
 }) {
   const [messages, setMessages] = useState([]);
   const [apiHistory, setApiHistory] = useState([]);
@@ -371,6 +373,9 @@ export default function ChatPanel({
         if (ref) onRefCodeKnown?.(ref);
         if (tc.name === "upload_created_html_itinerary_document" && tc.input?.html_content) {
           onHtmlGenerated?.(tc.input.html_content);
+        }
+        if (tc.name === "add_person_to_itinerary" && tc.input?.email) {
+          onPersonAdded?.(tc.input.email, tc.input.reference_code);
         }
       });
 
