@@ -1,35 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { RefreshCw, Settings, Plus, LogOut, ChevronRight } from "lucide-react";
-
-async function callMcpTool(toolName, toolInput = {}) {
-  const res = await fetch("/.netlify/functions/mcp-tool", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ toolName, toolInput }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data.result;
-}
-
-function parseTrips(result) {
-  // result is a text string from the MCP tool — try to parse as JSON
-  try {
-    const parsed = JSON.parse(result);
-    // Handle array directly or wrapped object
-    const arr = Array.isArray(parsed) ? parsed : (parsed.items || parsed.results || parsed.itineraries || parsed.trips || parsed.data || []);
-    return arr.map((t) => ({
-      refCode: t.reference_code || t.referenceCode || t.ref_code || t.code || "",
-      title: t.field1 || t.reference_code || "Untitled",
-      startDate: t.start_date || t.startDate || t.departure_date || t.from_date || "",
-      endDate: t.end_date || t.endDate || t.return_date || t.to_date || "",
-    }));
-  } catch {
-    // Fallback: try to extract structured data from plain text
-    return [];
-  }
-}
+import { RefreshCw, Plus, LogOut, ChevronRight } from "lucide-react";
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -45,19 +16,27 @@ function formatDate(dateStr) {
 export default function HomePage() {
   const navigate = useNavigate();
   const [trips, setTrips] = useState([]);
-  const [rawResult, setRawResult] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const email = localStorage.getItem("vamoos_user_email") || "";
 
   const loadTrips = async () => {
+    if (!email) {
+      setTrips([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      const result = await callMcpTool("list_itineraries");
-      setRawResult(result);
-      const parsed = parseTrips(result);
-      setTrips(parsed);
+      const res = await fetch("/.netlify/functions/trip-index", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get", email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setTrips(data.trips || []);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -137,10 +116,7 @@ export default function HomePage() {
         {error && !loading && (
           <div className="px-4 py-4 text-sm text-red-400">
             <p className="mb-2">Error loading trips: {error}</p>
-            <button
-              onClick={loadTrips}
-              className="text-[#f57c00] underline"
-            >
+            <button onClick={loadTrips} className="text-[#f57c00] underline">
               Retry
             </button>
           </div>
@@ -148,16 +124,7 @@ export default function HomePage() {
 
         {!loading && !error && trips.length === 0 && (
           <div className="px-4 py-8 text-center text-[#a0a0a0] text-sm">
-            {rawResult ? (
-              <div>
-                <p className="mb-2">Could not parse trip list. Raw response:</p>
-                <pre className="text-left text-xs bg-black/20 rounded p-3 overflow-x-auto whitespace-pre-wrap">
-                  {rawResult}
-                </pre>
-              </div>
-            ) : (
-              <p>No trips found.</p>
-            )}
+            <p>No trips found. Tap "Add new trip or event" to get started.</p>
           </div>
         )}
 
@@ -171,10 +138,10 @@ export default function HomePage() {
               >
                 <div>
                   <div className="text-[#c0c0c0] text-[15px]">{trip.title}</div>
-                  {trip.startDate && (
+                  {trip.departureDate && (
                     <div className="text-[#808080] text-[12px] mt-0.5">
-                      {formatDate(trip.startDate)}
-                      {trip.endDate ? ` – ${formatDate(trip.endDate)}` : ""}
+                      {formatDate(trip.departureDate)}
+                      {trip.returnDate ? ` – ${formatDate(trip.returnDate)}` : ""}
                     </div>
                   )}
                 </div>
