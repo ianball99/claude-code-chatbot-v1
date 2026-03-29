@@ -369,6 +369,9 @@ export default function ChatPanel({
         onTripMutated?.(tc.name, results[i]);
         const ref = extractRefCode(tc.name, results[i]);
         if (ref) onRefCodeKnown?.(ref);
+        if (tc.name === "upload_created_html_itinerary_document" && tc.input?.html_content) {
+          onHtmlGenerated?.(tc.input.html_content);
+        }
       });
 
       const toolResults = pendingMcpCalls.map((tc, i) => ({
