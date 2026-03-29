@@ -58,7 +58,7 @@ Step 1 - Create a trip in Vamoos using the create_itinerary tool:
 Step 2 - Call upload_created_html_itinerary_document with the following fields:
   - reference_code and vamoos_id from the trip you just created
   - departure_date and return_date
-  - document_name: a friendly presentation name (e.g. "Italy Itinerary")
+  - document_name: ALWAYS use "Trip Summary-{trip title}" where trip title is the value of field1 (e.g. if field1 is "Italy April 2026", use document_name: "Trip Summary-Italy April 2026")
   - html_content: the full itinerary written as a complete HTML document
 
 The server uploads the HTML file directly - you do NOT need to ask the user for any file attachment.
@@ -211,7 +211,7 @@ const TOOLS = [
         vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
         departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
         return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
-        document_name: { type: "string", description: "Display name shown in the Vamoos app (e.g. 'Travel Itinerary'). Also used as the filename." },
+        document_name: { type: "string", description: "Display name shown in the Vamoos app. ALWAYS use 'Trip Summary-{trip title}' (e.g. 'Trip Summary-Italy April 2026'). Also used as the filename." },
         html_content: { type: "string", description: "The full document written as HTML. Write a complete HTML document with <html>, <head> (including <style>), and <body> tags." },
       },
       required: ["reference_code", "vamoos_id", "departure_date", "return_date", "document_name", "html_content"],
