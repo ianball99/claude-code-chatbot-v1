@@ -12,19 +12,6 @@ function emailToKey(email) {
   return encodeURIComponent(email.toLowerCase().trim());
 }
 
-/**
- * trip-index — per-user trip list stored in Netlify Blobs
- *
- * POST body shapes:
- *   { action: "get", email: "user@example.com" }
- *     → returns { trips: [ { refCode, title, departureDate, returnDate } ] }
- *
- *   { action: "add", email: "user@example.com", trip: { refCode, title, departureDate, returnDate } }
- *     → adds or updates entry for refCode, returns { trips: [...] }
- *
- *   { action: "remove", email: "user@example.com", refCode: "ABC123" }
- *     → removes entry for refCode, returns { trips: [...] }
- */
 export const handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers: CORS, body: "" };
@@ -51,6 +38,8 @@ export const handler = async (event) => {
 
   const { action, email } = body;
 
+  console.log("[trip-index] action:", action, "email:", email);
+
   if (!action || !email) {
     return {
       statusCode: 400,
@@ -60,21 +49,26 @@ export const handler = async (event) => {
   }
 
   const key = emailToKey(email);
+  console.log("[trip-index] key:", key);
 
   try {
     const store = getStore("trip-index");
+    console.log("[trip-index] store ready");
 
     // Load existing list for this user
     let trips = [];
     try {
       const raw = await store.get(key);
+      console.log("[trip-index] store.get raw:", raw);
       if (raw) {
         trips = JSON.parse(raw);
       }
-    } catch {
-      // No existing entry or parse error — start fresh
+    } catch (getErr) {
+      console.warn("[trip-index] store.get error:", getErr.message);
       trips = [];
     }
+
+    console.log("[trip-index] loaded trips:", trips.length);
 
     if (action === "get") {
       return {
@@ -94,7 +88,6 @@ export const handler = async (event) => {
         };
       }
 
-      // Upsert: replace existing entry with same refCode, or append
       const existing = trips.findIndex((t) => t.refCode === trip.refCode);
       if (existing >= 0) {
         trips[existing] = trip;
@@ -102,7 +95,9 @@ export const handler = async (event) => {
         trips.push(trip);
       }
 
+      console.log("[trip-index] writing trips:", trips.length);
       await store.set(key, JSON.stringify(trips));
+      console.log("[trip-index] write complete");
 
       return {
         statusCode: 200,
@@ -138,9 +133,7 @@ export const handler = async (event) => {
     };
 
   } catch (err) {
-    // Top-level catch — blobs unavailable or unexpected error.
-    // For "get" return empty trips so the page loads cleanly.
-    // For mutations return the error so callers know the write didn't persist.
+    console.error("[trip-index] top-level error:", err.message, err.stack);
     if (action === "get") {
       return {
         statusCode: 200,
