@@ -6,6 +6,12 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Encode email into a blob-safe key.
+// Netlify Blobs uses URL paths internally — @ and . can break key resolution.
+function emailToKey(email) {
+  return encodeURIComponent(email.toLowerCase().trim());
+}
+
 /**
  * trip-index — per-user trip list stored in Netlify Blobs
  *
@@ -53,7 +59,7 @@ export const handler = async (event) => {
     };
   }
 
-  const key = email.toLowerCase().trim();
+  const key = emailToKey(email);
 
   try {
     const store = getStore("trip-index");
@@ -96,16 +102,7 @@ export const handler = async (event) => {
         trips.push(trip);
       }
 
-      try {
-        await store.set(key, JSON.stringify(trips));
-      } catch (setErr) {
-        // Return success with the in-memory state even if persist failed
-        return {
-          statusCode: 200,
-          headers: { ...CORS, "Content-Type": "application/json" },
-          body: JSON.stringify({ trips, warning: `Persist failed: ${setErr.message}` }),
-        };
-      }
+      await store.set(key, JSON.stringify(trips));
 
       return {
         statusCode: 200,
@@ -125,16 +122,7 @@ export const handler = async (event) => {
       }
 
       trips = trips.filter((t) => t.refCode !== refCode);
-
-      try {
-        await store.set(key, JSON.stringify(trips));
-      } catch (setErr) {
-        return {
-          statusCode: 200,
-          headers: { ...CORS, "Content-Type": "application/json" },
-          body: JSON.stringify({ trips, warning: `Persist failed: ${setErr.message}` }),
-        };
-      }
+      await store.set(key, JSON.stringify(trips));
 
       return {
         statusCode: 200,
