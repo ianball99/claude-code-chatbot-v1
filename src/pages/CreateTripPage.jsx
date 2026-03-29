@@ -50,6 +50,18 @@ async function callMcpTool(toolName, toolInput = {}) {
   return data.result;
 }
 
+async function registerTripInIndex(email, trip) {
+  try {
+    await fetch("/.netlify/functions/trip-index", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "add", email, trip }),
+    });
+  } catch {
+    // Non-fatal — trip was created, index entry just didn't save
+  }
+}
+
 function generateRefCode() {
   const now = new Date();
   const pad = (n) => String(n).padStart(2, "0");
@@ -105,6 +117,16 @@ export default function CreateTripPage() {
         const parsed = JSON.parse(createResult);
         vamoosId = parsed.vamoos_id ?? parsed.id ?? null;
       } catch {}
+
+      // Register trip in per-user index (non-fatal)
+      if (email) {
+        registerTripInIndex(email, {
+          refCode,
+          title: title.trim(),
+          departureDate: startDateIso,
+          returnDate: endDateIso,
+        });
+      }
 
       // Step 2: add person + fetch background image in parallel
       setLoadingStep("Adding details…");
