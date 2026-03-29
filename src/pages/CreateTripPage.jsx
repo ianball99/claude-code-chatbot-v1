@@ -50,18 +50,6 @@ async function callMcpTool(toolName, toolInput = {}) {
   return data.result;
 }
 
-async function registerTripInIndex(email, trip) {
-  try {
-    await fetch("/.netlify/functions/trip-index", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "add", email, trip }),
-    });
-  } catch {
-    // Non-fatal — trip was created, index entry just didn't save
-  }
-}
-
 function generateRefCode() {
   const now = new Date();
   const pad = (n) => String(n).padStart(2, "0");
@@ -111,22 +99,12 @@ export default function CreateTripPage() {
         field1: title.trim(),
       });
 
-      // Parse vamoos_id from the create response (needed for background upload)
+      // Try to parse vamoos_id from create response
       let vamoosId = null;
       try {
         const parsed = JSON.parse(createResult);
         vamoosId = parsed.vamoos_id ?? parsed.id ?? null;
       } catch {}
-
-      // Register trip in per-user index (non-fatal)
-      if (email) {
-        registerTripInIndex(email, {
-          refCode,
-          title: title.trim(),
-          departureDate: startDateIso,
-          returnDate: endDateIso,
-        });
-      }
 
       // Step 2: add person + fetch background image in parallel
       setLoadingStep("Adding details…");
@@ -143,27 +121,57 @@ export default function CreateTripPage() {
         }).then((r) => r.json()),
       ]);
 
-      // Step 3: upload background if we have both vamoos_id and a valid image
-      if (
-        vamoosId &&
-        imageResult.status === "fulfilled" &&
-        imageResult.value?.imageData
-      ) {
-        setLoadingStep("Uploading background…");
-        const { imageData, contentType, filename } = imageResult.value;
+      // Step 3: upload background image.
+      // If vamoos_id wasn't in the create response, fetch it via get_itinerary.
+      if (imageResult.status === "fulfilled" && imageResult.value?.imageData) {
+        if (!vamoosId) {
+          try {
+            const getResult = await callMcpTool("get_itinerary", { reference_code: refCode });
+            const getParsed = JSON.parse(getResult);
+            vamoosId = getParsed.vamoos_id ?? getParsed.id ?? null;
+          } catch {}
+        }
+
+        if (vamoosId) {
+          setLoadingStep("Uploading background…");
+          const { imageData, contentType, filename } = imageResult.value;
+          try {
+            await callMcpTool("upload_background_image", {
+              reference_code: refCode,
+              vamoos_id: vamoosId,
+              departure_date: startDateIso,
+              return_date: endDateIso,
+              file_data: imageData,
+              filename,
+              content_type: contentType,
+            });
+          } catch (bgErr) {
+            // Non-fatal — trip was created, background just didn't upload
+            console.warn("Background upload failed:", bgErr.message);
+          }
+        }
+      }
+
+      // Step 4: register trip in per-user index — awaited so it completes before navigate
+      if (email) {
+        setLoadingStep("Saving…");
         try {
-          await callMcpTool("upload_background_image", {
-            reference_code: refCode,
-            vamoos_id: vamoosId,
-            departure_date: startDateIso,
-            return_date: endDateIso,
-            file_data: imageData,
-            filename,
-            content_type: contentType,
+          await fetch("/.netlify/functions/trip-index", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "add",
+              email,
+              trip: {
+                refCode,
+                title: title.trim(),
+                departureDate: startDateIso,
+                returnDate: endDateIso,
+              },
+            }),
           });
-        } catch (bgErr) {
-          // Non-fatal — trip was created, background just didn't upload
-          console.warn("Background upload failed:", bgErr.message);
+        } catch {
+          // Non-fatal — trip was created, index entry just didn't save
         }
       }
 
