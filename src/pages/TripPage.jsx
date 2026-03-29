@@ -76,22 +76,25 @@ export default function TripPage() {
           return_date: parsed.return_date,
         });
 
-        // Load saved summary if one exists (most recent wins)
-        const savedDoc = (parsed.documents?.travel || []).findLast(
+        // Load saved summary if one exists.
+        // Documents are in documents.all as folder objects with children arrays.
+        // Each child's URL is at file.https_url (pre-signed, already encoded).
+        const travelFolder = (parsed.documents?.all || []).find(
+          (f) => f.is_folder && f.path?.includes("/documents/travel")
+        );
+        const savedDoc = (travelFolder?.children || []).findLast(
           (d) => d.name?.startsWith("Trip Summary")
         );
-        if (savedDoc) {
-          const docUrl = savedDoc.file?.s3_url || savedDoc.file_url;
-          if (docUrl) {
-            fetch("/.netlify/functions/fetch-document", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ url: docUrl }),
-            })
-              .then((r) => r.text())
-              .then((html) => { if (html.trim()) setSummaryHtml(html); })
-              .catch(() => {});
-          }
+        const docUrl = savedDoc?.file?.https_url;
+        if (docUrl) {
+          fetch("/.netlify/functions/fetch-document", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: docUrl }),
+          })
+            .then((r) => { if (!r.ok) throw new Error("fetch-document failed"); return r.text(); })
+            .then((html) => { if (html.trim().startsWith("<")) setSummaryHtml(html); })
+            .catch(() => {});
         }
 
         const formatted = await formatDetails(result);
