@@ -14,6 +14,18 @@ async function callMcpTool(toolName, toolInput = {}) {
   return data.result;
 }
 
+async function registerTripForPerson(email, trip) {
+  try {
+    await fetch("/.netlify/functions/trip-index", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "add", email, trip }),
+    });
+  } catch {
+    // Non-fatal
+  }
+}
+
 export default function TripPage() {
   const { refCode } = useParams();
   const navigate = useNavigate();
@@ -149,6 +161,20 @@ export default function TripPage() {
     [decodedRef]
   );
 
+  // Register newly-added person in the trip-index blob store so they see this trip on HomePage
+  const handlePersonAdded = useCallback(
+    (email, personRefCode) => {
+      const ref = personRefCode || decodedRef;
+      registerTripForPerson(email, {
+        refCode: ref,
+        title: tripTitle,
+        departureDate: tripMeta?.departure_date || "",
+        returnDate: tripMeta?.return_date || "",
+      });
+    },
+    [decodedRef, tripTitle, tripMeta]
+  );
+
   // Drag handlers
   const handleMouseDown = useCallback(() => {
     isDragging.current = true;
@@ -278,6 +304,7 @@ export default function TripPage() {
             initialSystemContext={`You are managing the Vamoos trip with reference code: ${decodedRef}. Always use this reference code when calling tools.`}
             onHtmlGenerated={(html) => setSummaryHtml(html)}
             onTripMutated={handleTripMutated}
+            onPersonAdded={handlePersonAdded}
           />
         </div>
       </div>
