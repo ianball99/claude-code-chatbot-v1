@@ -111,7 +111,7 @@ export default function CreateTripPage() {
       const [, imageResult] = await Promise.allSettled([
         callMcpTool("add_person_to_itinerary", {
           reference_code: refCode,
-          name: "mcp chat creator",
+          name: email,
           email,
         }),
         fetch("/.netlify/functions/generate-trip-image", {
