@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { RefreshCw, Plus, LogOut, ChevronRight } from "lucide-react";
 
+const TRIP_LIST_KEY = (email) => `trip_list_${email.toLowerCase()}`;
+
 function formatDate(dateStr) {
   if (!dateStr) return "";
   try {
@@ -16,31 +18,15 @@ function formatDate(dateStr) {
 export default function HomePage() {
   const navigate = useNavigate();
   const [trips, setTrips] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const email = localStorage.getItem("vamoos_user_email") || "";
 
-  const loadTrips = async () => {
-    if (!email) {
-      setTrips([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError("");
+  const loadTrips = () => {
+    if (!email) { setTrips([]); return; }
     try {
-      const res = await fetch("/.netlify/functions/trip-index", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "get", email }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      setTrips(data.trips || []);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
+      const stored = localStorage.getItem(TRIP_LIST_KEY(email));
+      setTrips(stored ? JSON.parse(stored) : []);
+    } catch {
+      setTrips([]);
     }
   };
 
@@ -73,7 +59,7 @@ export default function HomePage() {
           onClick={loadTrips}
           className="flex items-center gap-4 w-full px-4 py-4 text-[#f57c00] hover:opacity-80 transition-opacity"
         >
-          <RefreshCw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} strokeWidth={2} />
+          <RefreshCw className="h-5 w-5" strokeWidth={2} />
           <span className="text-[17px]">Refresh</span>
         </button>
 
@@ -107,28 +93,11 @@ export default function HomePage() {
 
       {/* Trip list — scrollable */}
       <div className="flex-1 overflow-y-auto bg-[#4a4a4a]">
-        {loading && (
-          <div className="flex items-center justify-center py-12 text-[#a0a0a0] text-sm">
-            Loading trips…
-          </div>
-        )}
-
-        {error && !loading && (
-          <div className="px-4 py-4 text-sm text-red-400">
-            <p className="mb-2">Error loading trips: {error}</p>
-            <button onClick={loadTrips} className="text-[#f57c00] underline">
-              Retry
-            </button>
-          </div>
-        )}
-
-        {!loading && !error && trips.length === 0 && (
+        {trips.length === 0 ? (
           <div className="px-4 py-8 text-center text-[#a0a0a0] text-sm">
             <p>No trips found. Tap "Add new trip or event" to get started.</p>
           </div>
-        )}
-
-        {!loading && trips.length > 0 && (
+        ) : (
           <div className="flex flex-col">
             {trips.map((trip, i) => (
               <button
