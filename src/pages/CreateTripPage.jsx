@@ -2,29 +2,18 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
-// Parse flexible date input into YYYY-MM-DD
-// Accepts: 1/4/26, 01/04/2026, 1-4-26, 2026-04-01, 1 Apr 2026, etc.
 function parseDate(input) {
   if (!input) return null;
   const s = input.trim();
-
-  // Already YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-
-  // d/m/yy or d/m/yyyy or d-m-yy or d-m-yyyy
   const dmy = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
   if (dmy) {
     let [, d, m, y] = dmy;
     if (y.length === 2) y = "20" + y;
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
-
-  // Try native Date parse as a fallback (handles "1 Apr 2026", "April 1 2026", etc.)
   const parsed = new Date(s);
-  if (!isNaN(parsed)) {
-    return parsed.toISOString().slice(0, 10);
-  }
-
+  if (!isNaN(parsed)) return parsed.toISOString().slice(0, 10);
   return null;
 }
 
@@ -48,6 +37,18 @@ async function callMcpTool(toolName, toolInput = {}) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data.result;
+}
+
+async function addTripToIndex(email, trip) {
+  try {
+    await fetch("/.netlify/functions/trip-index", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "add", email, trip }),
+    });
+  } catch {
+    // Non-fatal
+  }
 }
 
 function generateRefCode() {
@@ -99,7 +100,7 @@ export default function CreateTripPage() {
         field1: title.trim(),
       });
 
-      // Parse vamoos_id from the create response (needed for background upload)
+      // Try to parse vamoos_id from create response
       let vamoosId = null;
       try {
         const parsed = JSON.parse(createResult);
@@ -111,7 +112,7 @@ export default function CreateTripPage() {
       const [, imageResult] = await Promise.allSettled([
         callMcpTool("add_person_to_itinerary", {
           reference_code: refCode,
-          name: "mcp chat creator",
+          name: email,
           email,
         }),
         fetch("/.netlify/functions/generate-trip-image", {
@@ -121,28 +122,44 @@ export default function CreateTripPage() {
         }).then((r) => r.json()),
       ]);
 
-      // Step 3: upload background if we have both vamoos_id and a valid image
-      if (
-        vamoosId &&
-        imageResult.status === "fulfilled" &&
-        imageResult.value?.imageData
-      ) {
-        setLoadingStep("Uploading background…");
-        const { imageData, contentType, filename } = imageResult.value;
-        try {
-          await callMcpTool("upload_background_image", {
-            reference_code: refCode,
-            vamoos_id: vamoosId,
-            departure_date: startDateIso,
-            return_date: endDateIso,
-            file_data: imageData,
-            filename,
-            content_type: contentType,
-          });
-        } catch (bgErr) {
-          // Non-fatal — trip was created, background just didn't upload
-          console.warn("Background upload failed:", bgErr.message);
+      // Step 3: upload background image.
+      // If vamoos_id wasn't in the create response, fetch it via get_itinerary.
+      if (imageResult.status === "fulfilled" && imageResult.value?.imageData) {
+        if (!vamoosId) {
+          try {
+            const getResult = await callMcpTool("get_itinerary", { reference_code: refCode });
+            const getParsed = JSON.parse(getResult);
+            vamoosId = getParsed.vamoos_id ?? getParsed.id ?? null;
+          } catch {}
         }
+        if (vamoosId) {
+          setLoadingStep("Uploading background…");
+          const { imageData, contentType, filename } = imageResult.value;
+          try {
+            await callMcpTool("upload_background_image", {
+              reference_code: refCode,
+              vamoos_id: vamoosId,
+              departure_date: startDateIso,
+              return_date: endDateIso,
+              file_data: imageData,
+              filename,
+              content_type: contentType,
+            });
+          } catch (bgErr) {
+            console.warn("Background upload failed:", bgErr.message);
+          }
+        }
+      }
+
+      // Step 4: register trip in blob store — awaited so it completes before navigate
+      if (email) {
+        setLoadingStep("Saving…");
+        await addTripToIndex(email, {
+          refCode,
+          title: title.trim(),
+          departureDate: startDateIso,
+          returnDate: endDateIso,
+        });
       }
 
       setLoadingStep("Opening trip…");
@@ -158,7 +175,6 @@ export default function CreateTripPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#3a3a3a]">
-      {/* Header */}
       <div className="flex items-center gap-3 border-b border-[#505050] px-4 py-3">
         <button
           onClick={() => navigate("/home")}
@@ -170,7 +186,6 @@ export default function CreateTripPage() {
         <h1 className="text-base font-medium text-white">New Trip</h1>
       </div>
 
-      {/* Logo */}
       <div className="flex flex-col items-center pt-10 pb-6">
         <div className="flex items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f57c00]">
@@ -183,10 +198,8 @@ export default function CreateTripPage() {
         </div>
       </div>
 
-      {/* Form */}
       <div className="flex flex-1 flex-col items-center px-8 pt-4">
         <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-          {/* Title */}
           <div className="space-y-1.5">
             <label className="block text-sm text-[#c0c0c0] px-1">Trip Title</label>
             <input
@@ -199,7 +212,6 @@ export default function CreateTripPage() {
             />
           </div>
 
-          {/* Start date */}
           <div className="space-y-1.5">
             <label className="block text-sm text-[#c0c0c0] px-1">Start Date</label>
             <input
@@ -217,7 +229,6 @@ export default function CreateTripPage() {
             )}
           </div>
 
-          {/* End date */}
           <div className="space-y-1.5">
             <label className="block text-sm text-[#c0c0c0] px-1">End Date</label>
             <input
@@ -235,12 +246,8 @@ export default function CreateTripPage() {
             )}
           </div>
 
-          {/* Error */}
-          {error && (
-            <p className="text-sm text-red-400 px-2">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-400 px-2">{error}</p>}
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
