@@ -38,8 +38,6 @@ export const handler = async (event) => {
 
   const { action, email } = body;
 
-  console.log("[trip-index] action:", action, "email:", email);
-
   if (!action || !email) {
     return {
       statusCode: 400,
@@ -49,26 +47,25 @@ export const handler = async (event) => {
   }
 
   const key = emailToKey(email);
-  console.log("[trip-index] key:", key);
 
   try {
-    const store = getStore("trip-index");
-    console.log("[trip-index] store ready");
+    const siteID = process.env.NETLIFY_SITE_ID;
+    const token = process.env.NETLIFY_BLOBS_TOKEN;
+
+    if (!siteID || !token) {
+      throw new Error("NETLIFY_SITE_ID or NETLIFY_BLOBS_TOKEN env var not set");
+    }
+
+    const store = getStore({ name: "trip-index", siteID, token });
 
     // Load existing list for this user
     let trips = [];
     try {
       const raw = await store.get(key);
-      console.log("[trip-index] store.get raw:", raw);
-      if (raw) {
-        trips = JSON.parse(raw);
-      }
-    } catch (getErr) {
-      console.warn("[trip-index] store.get error:", getErr.message);
+      if (raw) trips = JSON.parse(raw);
+    } catch {
       trips = [];
     }
-
-    console.log("[trip-index] loaded trips:", trips.length);
 
     if (action === "get") {
       return {
@@ -88,16 +85,11 @@ export const handler = async (event) => {
         };
       }
 
-      const existing = trips.findIndex((t) => t.refCode === trip.refCode);
-      if (existing >= 0) {
-        trips[existing] = trip;
-      } else {
-        trips.push(trip);
-      }
+      const idx = trips.findIndex((t) => t.refCode === trip.refCode);
+      if (idx >= 0) trips[idx] = trip;
+      else trips.push(trip);
 
-      console.log("[trip-index] writing trips:", trips.length);
       await store.set(key, JSON.stringify(trips));
-      console.log("[trip-index] write complete");
 
       return {
         statusCode: 200,
@@ -133,18 +125,17 @@ export const handler = async (event) => {
     };
 
   } catch (err) {
-    console.error("[trip-index] top-level error:", err.message, err.stack);
     if (action === "get") {
       return {
         statusCode: 200,
         headers: { ...CORS, "Content-Type": "application/json" },
-        body: JSON.stringify({ trips: [], warning: `Blobs unavailable: ${err.message}` }),
+        body: JSON.stringify({ trips: [], warning: err.message }),
       };
     }
     return {
       statusCode: 500,
       headers: { ...CORS, "Content-Type": "application/json" },
-      body: JSON.stringify({ error: `Blobs error: ${err.message}` }),
+      body: JSON.stringify({ error: err.message }),
     };
   }
 };
