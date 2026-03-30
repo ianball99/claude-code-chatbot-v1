@@ -2,29 +2,20 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
-// Parse flexible date input into YYYY-MM-DD
-// Accepts: 1/4/26, 01/04/2026, 1-4-26, 2026-04-01, 1 Apr 2026, etc.
+const TRIP_LIST_KEY = (email) => `trip_list_${email.toLowerCase()}`;
+
 function parseDate(input) {
   if (!input) return null;
   const s = input.trim();
-
-  // Already YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-
-  // d/m/yy or d/m/yyyy or d-m-yy or d-m-yyyy
   const dmy = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
   if (dmy) {
     let [, d, m, y] = dmy;
     if (y.length === 2) y = "20" + y;
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
-
-  // Try native Date parse as a fallback (handles "1 Apr 2026", "April 1 2026", etc.)
   const parsed = new Date(s);
-  if (!isNaN(parsed)) {
-    return parsed.toISOString().slice(0, 10);
-  }
-
+  if (!isNaN(parsed)) return parsed.toISOString().slice(0, 10);
   return null;
 }
 
@@ -48,6 +39,17 @@ async function callMcpTool(toolName, toolInput = {}) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data.result;
+}
+
+function saveTripToLocalStorage(email, trip) {
+  try {
+    const key = TRIP_LIST_KEY(email);
+    const existing = JSON.parse(localStorage.getItem(key) || "[]");
+    const idx = existing.findIndex((t) => t.refCode === trip.refCode);
+    if (idx >= 0) existing[idx] = trip;
+    else existing.push(trip);
+    localStorage.setItem(key, JSON.stringify(existing));
+  } catch {}
 }
 
 function generateRefCode() {
@@ -146,33 +148,19 @@ export default function CreateTripPage() {
               content_type: contentType,
             });
           } catch (bgErr) {
-            // Non-fatal — trip was created, background just didn't upload
             console.warn("Background upload failed:", bgErr.message);
           }
         }
       }
 
-      // Step 4: register trip in per-user index — awaited so it completes before navigate
+      // Step 4: save trip to localStorage so it appears on HomePage immediately
       if (email) {
-        setLoadingStep("Saving…");
-        try {
-          await fetch("/.netlify/functions/trip-index", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "add",
-              email,
-              trip: {
-                refCode,
-                title: title.trim(),
-                departureDate: startDateIso,
-                returnDate: endDateIso,
-              },
-            }),
-          });
-        } catch {
-          // Non-fatal — trip was created, index entry just didn't save
-        }
+        saveTripToLocalStorage(email, {
+          refCode,
+          title: title.trim(),
+          departureDate: startDateIso,
+          returnDate: endDateIso,
+        });
       }
 
       setLoadingStep("Opening trip…");
@@ -216,7 +204,6 @@ export default function CreateTripPage() {
       {/* Form */}
       <div className="flex flex-1 flex-col items-center px-8 pt-4">
         <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-          {/* Title */}
           <div className="space-y-1.5">
             <label className="block text-sm text-[#c0c0c0] px-1">Trip Title</label>
             <input
@@ -229,7 +216,6 @@ export default function CreateTripPage() {
             />
           </div>
 
-          {/* Start date */}
           <div className="space-y-1.5">
             <label className="block text-sm text-[#c0c0c0] px-1">Start Date</label>
             <input
@@ -247,7 +233,6 @@ export default function CreateTripPage() {
             )}
           </div>
 
-          {/* End date */}
           <div className="space-y-1.5">
             <label className="block text-sm text-[#c0c0c0] px-1">End Date</label>
             <input
@@ -265,12 +250,8 @@ export default function CreateTripPage() {
             )}
           </div>
 
-          {/* Error */}
-          {error && (
-            <p className="text-sm text-red-400 px-2">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-400 px-2">{error}</p>}
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
