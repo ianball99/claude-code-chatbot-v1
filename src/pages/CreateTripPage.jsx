@@ -2,8 +2,6 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
-const TRIP_LIST_KEY = (email) => `trip_list_${email.toLowerCase()}`;
-
 function parseDate(input) {
   if (!input) return null;
   const s = input.trim();
@@ -41,15 +39,16 @@ async function callMcpTool(toolName, toolInput = {}) {
   return data.result;
 }
 
-function saveTripToLocalStorage(email, trip) {
+async function addTripToIndex(email, trip) {
   try {
-    const key = TRIP_LIST_KEY(email);
-    const existing = JSON.parse(localStorage.getItem(key) || "[]");
-    const idx = existing.findIndex((t) => t.refCode === trip.refCode);
-    if (idx >= 0) existing[idx] = trip;
-    else existing.push(trip);
-    localStorage.setItem(key, JSON.stringify(existing));
-  } catch {}
+    await fetch("/.netlify/functions/trip-index", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "add", email, trip }),
+    });
+  } catch {
+    // Non-fatal
+  }
 }
 
 function generateRefCode() {
@@ -133,7 +132,6 @@ export default function CreateTripPage() {
             vamoosId = getParsed.vamoos_id ?? getParsed.id ?? null;
           } catch {}
         }
-
         if (vamoosId) {
           setLoadingStep("Uploading background…");
           const { imageData, contentType, filename } = imageResult.value;
@@ -153,9 +151,10 @@ export default function CreateTripPage() {
         }
       }
 
-      // Step 4: save trip to localStorage so it appears on HomePage immediately
+      // Step 4: register trip in blob store — awaited so it completes before navigate
       if (email) {
-        saveTripToLocalStorage(email, {
+        setLoadingStep("Saving…");
+        await addTripToIndex(email, {
           refCode,
           title: title.trim(),
           departureDate: startDateIso,
@@ -176,7 +175,6 @@ export default function CreateTripPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#3a3a3a]">
-      {/* Header */}
       <div className="flex items-center gap-3 border-b border-[#505050] px-4 py-3">
         <button
           onClick={() => navigate("/home")}
@@ -188,7 +186,6 @@ export default function CreateTripPage() {
         <h1 className="text-base font-medium text-white">New Trip</h1>
       </div>
 
-      {/* Logo */}
       <div className="flex flex-col items-center pt-10 pb-6">
         <div className="flex items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f57c00]">
@@ -201,7 +198,6 @@ export default function CreateTripPage() {
         </div>
       </div>
 
-      {/* Form */}
       <div className="flex flex-1 flex-col items-center px-8 pt-4">
         <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
           <div className="space-y-1.5">
