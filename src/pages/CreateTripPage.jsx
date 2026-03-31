@@ -91,8 +91,7 @@ export default function CreateTripPage() {
     const email = localStorage.getItem("vamoos_user_email") || "";
 
     try {
-      // Step 1: create the trip
-      setLoadingStep("Creating trip…");
+      setLoadingStep("Creating trip...");
       const createResult = await callMcpTool("create_itinerary", {
         reference_code: refCode,
         departure_date: startDateIso,
@@ -100,15 +99,13 @@ export default function CreateTripPage() {
         field1: title.trim(),
       });
 
-      // Try to parse vamoos_id from create response
       let vamoosId = null;
       try {
         const parsed = JSON.parse(createResult);
         vamoosId = parsed.vamoos_id ?? parsed.id ?? null;
       } catch {}
 
-      // Step 2: add person + fetch background image in parallel
-      setLoadingStep("Adding details…");
+      setLoadingStep("Adding details...");
       const [, imageResult] = await Promise.allSettled([
         callMcpTool("add_person_to_itinerary", {
           reference_code: refCode,
@@ -122,8 +119,6 @@ export default function CreateTripPage() {
         }).then((r) => r.json()),
       ]);
 
-      // Step 3: upload background image.
-      // If vamoos_id wasn't in the create response, fetch it via get_itinerary.
       if (imageResult.status === "fulfilled" && imageResult.value?.imageData) {
         if (!vamoosId) {
           try {
@@ -133,7 +128,7 @@ export default function CreateTripPage() {
           } catch {}
         }
         if (vamoosId) {
-          setLoadingStep("Uploading background…");
+          setLoadingStep("Uploading background...");
           const { imageData, contentType, filename } = imageResult.value;
           try {
             await callMcpTool("upload_background_image", {
@@ -151,9 +146,8 @@ export default function CreateTripPage() {
         }
       }
 
-      // Step 4: register trip in blob store — awaited so it completes before navigate
       if (email) {
-        setLoadingStep("Saving…");
+        setLoadingStep("Saving...");
         await addTripToIndex(email, {
           refCode,
           title: title.trim(),
@@ -162,7 +156,7 @@ export default function CreateTripPage() {
         });
       }
 
-      setLoadingStep("Opening trip…");
+      setLoadingStep("Opening trip...");
       navigate(`/trip/${encodeURIComponent(refCode)}`, {
         state: { title: title.trim(), startDate: startDateIso },
       });
@@ -245,7 +239,7 @@ export default function CreateTripPage() {
             disabled={loading}
             className="w-full rounded-full bg-[#f57c00] py-3 text-lg font-medium text-white hover:bg-[#e06c00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? (loadingStep || "Creating trip…") : "Create Trip"}
+            {loading ? (loadingStep || "Creating trip...") : "Create Trip"}
           </button>
         </form>
       </div>
