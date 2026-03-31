@@ -532,9 +532,7 @@ export default function ChatPanel({
       {/* Header bar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#505050] shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-[#f57c00] flex items-center justify-center text-white font-bold text-sm">
-            V
-          </div>
+          <img src="/vamoos-logo-transparent.png" alt="Vamoos" className="w-7 h-7 object-contain" />
           <span className="text-white/80 text-sm font-serif">Vamoos AI Assistant</span>
         </div>
         <div className="flex items-center gap-2">
