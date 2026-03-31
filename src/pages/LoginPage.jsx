@@ -24,16 +24,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col bg-[#3a3a3a]">
       {/* Logo */}
       <div className="flex flex-col items-center pt-16 pb-8">
-        <div className="flex items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f57c00]">
-            <span className="text-3xl font-bold text-white">V</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-3xl font-bold tracking-wide text-[#f57c00]">VAMOOS</span>
-            <span className="text-sm text-[#f57c00]">Looking forward</span>
-            <span className="text-[10px] text-[#f57c00]/40 mt-0.5 font-mono">v2.2</span>
-          </div>
-        </div>
+        <img src="/vamoos-logo-and-text-transparent.png" alt="Vamoos" className="h-20 w-auto" />
       </div>
 
       {/* Step 1: Email */}
