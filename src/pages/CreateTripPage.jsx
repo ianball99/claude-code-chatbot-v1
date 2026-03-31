@@ -187,15 +187,7 @@ export default function CreateTripPage() {
       </div>
 
       <div className="flex flex-col items-center pt-10 pb-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f57c00]">
-            <span className="text-2xl font-bold text-white">V</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-2xl font-bold tracking-wide text-[#f57c00]">VAMOOS</span>
-            <span className="text-xs text-[#f57c00]">New trip or event</span>
-          </div>
-        </div>
+        <img src="/vamoos-logo-and-text-transparent.png" alt="Vamoos" className="h-16 w-auto" />
       </div>
 
       <div className="flex flex-1 flex-col items-center px-8 pt-4">
