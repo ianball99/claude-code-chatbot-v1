@@ -32,7 +32,6 @@ export default function TripPage() {
   const location = useLocation();
   const decodedRef = decodeURIComponent(refCode || "");
 
-  // Use title/startDate passed via navigation state (from CreateTripPage) if available
   const stateTitle = location.state?.title || "";
   const stateStartDate = location.state?.startDate || "";
 
@@ -56,13 +55,12 @@ export default function TripPage() {
       const data = await res.json();
       if (res.ok && data.text) return data.text;
     } catch {}
-    return rawJson; // fallback to raw
+    return rawJson;
   };
 
   const containerRef = useRef(null);
   const isDragging = useRef(false);
 
-  // Load trip details on mount
   useEffect(() => {
     if (!decodedRef) return;
     setDetailsLoading(true);
@@ -75,22 +73,17 @@ export default function TripPage() {
           parsed = {};
         }
 
-        // Extract title from field1 if not already set from nav state
         if (!stateTitle) {
           const t = parsed.field1 || parsed.title || parsed.name;
           if (t) setTripTitle(t);
         }
 
-        // Store metadata needed for Save button
         setTripMeta({
           vamoos_id: parsed.vamoos_id,
           departure_date: parsed.departure_date,
           return_date: parsed.return_date,
         });
 
-        // Load saved summary if one exists.
-        // Documents are in documents.all as folder objects with children arrays.
-        // Each child's URL is at file.https_url (pre-signed, already encoded).
         const travelFolder = (parsed.documents?.all || []).find(
           (f) => f.is_folder && f.path?.includes("/documents/travel")
         );
@@ -116,7 +109,6 @@ export default function TripPage() {
       .finally(() => setDetailsLoading(false));
   }, [decodedRef]);
 
-  // Save current Summary HTML to server with standard naming convention
   const handleSave = async () => {
     if (!tripMeta || !summaryHtml) return;
     setSaving(true);
@@ -140,7 +132,6 @@ export default function TripPage() {
     }
   };
 
-  // Refresh details after chatbot modifies the trip
   const handleTripMutated = useCallback(
     (toolName) => {
       const mutatingTools = [
@@ -161,7 +152,6 @@ export default function TripPage() {
     [decodedRef]
   );
 
-  // Register newly-added person in the trip-index blob store so they see this trip on HomePage
   const handlePersonAdded = useCallback(
     (email, personRefCode) => {
       const ref = personRefCode || decodedRef;
@@ -175,7 +165,6 @@ export default function TripPage() {
     [decodedRef, tripTitle, tripMeta]
   );
 
-  // Drag handlers
   const handleMouseDown = useCallback(() => {
     isDragging.current = true;
     document.body.style.cursor = "row-resize";
@@ -214,7 +203,7 @@ export default function TripPage() {
     <div className="flex h-screen flex-col bg-[#3d3d3d]">
       {/* Header */}
       <div className="flex items-center gap-3 border-b border-[#505050] px-4 py-3 shrink-0">
-        <button onClick={() => navigate("/home")} className="text-white hover:text-[#f57c00] transition-colors">
+        <button onClick={() => navigate("/home")} className="text-white hover:text-[#ff7c46] transition-colors">
           <ArrowLeft className="h-6 w-6" strokeWidth={2} />
         </button>
         <h1 className="text-base font-medium text-white truncate">
@@ -243,7 +232,7 @@ export default function TripPage() {
                 onClick={() => setActiveTab(tab)}
                 className={`px-5 py-2.5 text-sm font-medium transition-colors ${
                   activeTab === tab
-                    ? "text-[#f57c00] border-b-2 border-[#f57c00]"
+                    ? "text-[#ff7c46] border-b-2 border-[#ff7c46]"
                     : "text-[#a0a0a0] hover:text-white"
                 }`}
               >
@@ -254,7 +243,7 @@ export default function TripPage() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="ml-auto mr-3 px-3 py-1 text-xs font-medium rounded bg-[#f57c00] text-white disabled:opacity-50 transition-opacity"
+                className="ml-auto mr-3 px-3 py-1 text-xs font-medium rounded bg-[#ff7c46] text-white disabled:opacity-50 transition-opacity"
               >
                 {saving ? "Saving…" : saveStatus === "saved" ? "Saved ✓" : saveStatus === "error" ? "Error ✗" : "Save"}
               </button>
