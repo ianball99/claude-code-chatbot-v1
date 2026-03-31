@@ -31,6 +31,7 @@ export default function LoginPage() {
           <div className="flex flex-col">
             <span className="text-3xl font-bold tracking-wide text-[#f57c00]">VAMOOS</span>
             <span className="text-sm text-[#f57c00]">Looking forward</span>
+            <span className="text-[10px] text-[#f57c00]/40 mt-0.5 font-mono">v2.2</span>
           </div>
         </div>
       </div>
@@ -52,7 +53,7 @@ export default function LoginPage() {
             />
             <button
               type="submit"
-              className="w-full rounded-full bg-[#707070] py-3 text-lg font-medium text-white hover:bg-[#808080] transition-colors"
+              className="w-full rounded-full bg-[#f57c00] py-3 text-lg font-medium text-white hover:bg-[#e06c00] transition-colors"
             >
               Next
             </button>
@@ -79,7 +80,7 @@ export default function LoginPage() {
             />
             <button
               type="submit"
-              className="w-full rounded-full bg-[#707070] py-3 text-lg font-medium text-white hover:bg-[#808080] transition-colors"
+              className="w-full rounded-full bg-[#f57c00] py-3 text-lg font-medium text-white hover:bg-[#e06c00] transition-colors"
             >
               Sign In
             </button>

@@ -89,8 +89,13 @@ export default function HomePage() {
           </button>
         </div>
 
-        <div className="bg-[#4a4a4a] px-4 py-3 border-t border-[#707070]">
+        <div className="bg-[#4a4a4a] px-4 py-3 border-t border-[#707070] flex items-center justify-between">
           <h2 className="text-base font-medium text-white">Your Trips</h2>
+          {!loading && trips.length > 0 && (
+            <span className="text-xs font-mono text-[#808080] bg-[#3d3d3d] px-2 py-0.5 rounded-full">
+              {trips.length}
+            </span>
+          )}
         </div>
       </div>
 
@@ -110,7 +115,7 @@ export default function HomePage() {
 
         {!loading && !error && trips.length === 0 && (
           <div className="px-4 py-8 text-center text-[#a0a0a0] text-sm">
-            <p>No trips found. Tap "Add new trip or event" to get started.</p>
+            <p>No trips found. Tap &#34;Add new trip or event&#34; to get started.</p>
           </div>
         )}
 
@@ -120,10 +125,10 @@ export default function HomePage() {
               <button
                 key={trip.refCode || i}
                 onClick={() => navigate(`/trip/${encodeURIComponent(trip.refCode)}`)}
-                className="flex items-center justify-between w-full px-4 py-4 text-left hover:bg-[#555555] transition-colors border-b border-[#505050]/40"
+                className="group flex items-center justify-between w-full px-4 py-4 text-left hover:bg-[#555555] transition-colors border-b border-[#505050]/40 border-l-[3px] border-l-transparent hover:border-l-[#f57c00]"
               >
                 <div>
-                  <div className="text-[#c0c0c0] text-[15px]">{trip.title}</div>
+                  <div className="text-[#c0c0c0] text-[15px] group-hover:text-white transition-colors">{trip.title}</div>
                   {trip.departureDate && (
                     <div className="text-[#808080] text-[12px] mt-0.5">
                       {formatDate(trip.departureDate)}
@@ -131,7 +136,7 @@ export default function HomePage() {
                     </div>
                   )}
                 </div>
-                <ChevronRight className="h-4 w-4 text-[#707070] shrink-0" />
+                <ChevronRight className="h-4 w-4 text-[#707070] group-hover:text-[#f57c00] transition-colors shrink-0" />
               </button>
             ))}
           </div>
