@@ -52,11 +52,8 @@ export default function HomePage() {
       <div className="shrink-0">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-4 border-b border-[#707070]">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f57c00]">
-            <span className="text-xl font-bold text-white">V</span>
-          </div>
-          <div>
-            <div className="text-[#f57c00] font-bold tracking-wide">VAMOOS</div>
+          <div className="flex flex-col">
+            <img src="/vamoos-logo-and-text-transparent.png" alt="Vamoos" className="h-10 w-auto" />
             {email && <div className="text-[11px] text-[#a0a0a0]">{email}</div>}
           </div>
         </div>
@@ -115,7 +112,7 @@ export default function HomePage() {
 
         {!loading && !error && trips.length === 0 && (
           <div className="px-4 py-8 text-center text-[#a0a0a0] text-sm">
-            <p>No trips found. Tap &#34;Add new trip or event&#34; to get started.</p>
+            <p>No trips found. Tap "Add new trip or event" to get started.</p>
           </div>
         )}
 
