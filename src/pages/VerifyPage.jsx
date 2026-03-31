@@ -19,7 +19,7 @@ export default function VerifyPage() {
         </p>
         <button
           onClick={() => navigate("/home")}
-          className="w-full max-w-sm rounded-full bg-[#f57c00] py-3 text-lg font-medium text-white hover:bg-[#e06c00] transition-colors"
+          className="w-full max-w-sm rounded-full bg-[#ff7c46] py-3 text-lg font-medium text-white hover:bg-[#e06b35] transition-colors"
         >
           Continue
         </button>
