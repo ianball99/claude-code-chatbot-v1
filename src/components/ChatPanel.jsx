@@ -128,7 +128,6 @@ function Bubble({ msg }) {
             className="text-sm leading-relaxed whitespace-pre-wrap break-words"
             style={{
               color: isUser ? "#fff" : "rgba(255,255,255,0.88)",
-              fontFamily: "Georgia, serif",
               marginTop: msg.toolCalls?.length ? 8 : 0,
             }}
           >
@@ -148,7 +147,7 @@ function SettingsPanel({ workerUrl, onSave, onClose }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-[#2a2a2a] border border-[#f57c00]/25 rounded-2xl p-7 w-full max-w-sm shadow-2xl">
-        <div className="flex justify-between items-center mb-5 text-white/80 font-serif text-lg">
+        <div className="flex justify-between items-center mb-5 text-white/80 text-lg">
           Settings
           <button onClick={onClose} className="text-white/40 text-base bg-transparent border-none cursor-pointer">
             ✕
@@ -533,7 +532,7 @@ export default function ChatPanel({
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#505050] shrink-0">
         <div className="flex items-center gap-2">
           <img src="/vamoos-logo-transparent.png" alt="Vamoos" className="w-7 h-7 object-contain" />
-          <span className="text-white/80 text-sm font-serif">Vamoos AI Assistant</span>
+          <span className="text-white/80 text-sm">Vamoos AI Assistant</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -553,7 +552,7 @@ export default function ChatPanel({
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="text-white/70 font-serif text-lg mb-1">How can I help you?</div>
+            <div className="text-white/70 text-lg mb-1">How can I help you?</div>
             <div className="text-white/30 text-sm italic">
               Manage Vamoos itineraries — create, update, and upload files.
             </div>
@@ -630,7 +629,7 @@ export default function ChatPanel({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
             }}
-            className="flex-1 bg-transparent border-none outline-none text-white/88 font-serif text-sm leading-relaxed resize-none min-h-6 max-h-28"
+            className="flex-1 bg-transparent border-none outline-none text-white/88 text-sm leading-relaxed resize-none min-h-6 max-h-28"
             style={{ color: "rgba(255,255,255,0.88)" }}
           />
           <button
