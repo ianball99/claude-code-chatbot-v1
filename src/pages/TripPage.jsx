@@ -40,6 +40,7 @@ export default function TripPage() {
   const [detailsContent, setDetailsContent] = useState("");
   const [detailsLoading, setDetailsLoading] = useState(true);
   const [summaryHtml, setSummaryHtml] = useState("");
+  const [summaryGenerating, setSummaryGenerating] = useState(false);
   const [tripTitle, setTripTitle] = useState(stateTitle || decodedRef);
   const [tripMeta, setTripMeta] = useState(null);
 
@@ -71,16 +72,15 @@ export default function TripPage() {
           parsed = {};
         }
 
-        if (!stateTitle) {
-          const t = parsed.field1 || parsed.title || parsed.name;
-          if (t) setTripTitle(t);
-        }
+        const resolvedTitle = stateTitle || parsed.field1 || parsed.title || parsed.name || decodedRef;
+        if (!stateTitle) setTripTitle(resolvedTitle);
 
-        setTripMeta({
+        const meta = {
           vamoos_id: parsed.vamoos_id,
           departure_date: parsed.departure_date,
           return_date: parsed.return_date,
-        });
+        };
+        setTripMeta(meta);
 
         const travelFolder = (parsed.documents?.all || []).find(
           (f) => f.is_folder && f.path?.includes("/documents/travel")
@@ -89,6 +89,7 @@ export default function TripPage() {
           (d) => d.name?.startsWith("Trip Summary")
         );
         const docUrl = savedDoc?.file?.https_url;
+
         if (docUrl) {
           fetch("/.netlify/functions/fetch-document", {
             method: "POST",
@@ -98,6 +99,25 @@ export default function TripPage() {
             .then((r) => { if (!r.ok) throw new Error("fetch-document failed"); return r.text(); })
             .then((html) => { if (html.trim().startsWith("<")) setSummaryHtml(html); })
             .catch(() => {});
+        } else {
+          // No saved summary — generate one silently in the background
+          setSummaryGenerating(true);
+          fetch("/.netlify/functions/generate-summary", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tripJson: result,
+              reference_code: decodedRef,
+              vamoos_id: meta.vamoos_id,
+              departure_date: meta.departure_date || "",
+              return_date: meta.return_date || "",
+              trip_title: resolvedTitle,
+            }),
+          })
+            .then((r) => r.json())
+            .then((data) => { if (data.html) setSummaryHtml(data.html); })
+            .catch(() => {})
+            .finally(() => setSummaryGenerating(false));
         }
 
         const formatted = await formatDetails(result);
@@ -237,7 +257,7 @@ export default function TripPage() {
                 />
               ) : (
                 <div className="rounded-lg bg-[#3d3d3d] p-4 h-full flex items-center justify-center text-[#707070] italic text-sm">
-                  Ask the chatbot to generate an itinerary document — it will appear here.
+                  {summaryGenerating ? "Generating initial summary…" : "Ask the chatbot to generate an itinerary document — it will appear here."}
                 </div>
               )
             )}
