@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
-  const [step, setStep] = useState(1); // 1 = email, 2 = verification code
+  const [step, setStep] = useState(1);
   const [verificationCode, setVerificationCode] = useState("");
 
   const handleEmailSubmit = (e) => {
@@ -40,11 +40,11 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#f57c00] focus:outline-none transition-colors"
+              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors"
             />
             <button
               type="submit"
-              className="w-full rounded-full bg-[#f57c00] py-3 text-lg font-medium text-white hover:bg-[#e06c00] transition-colors"
+              className="w-full rounded-full bg-[#ff7c46] py-3 text-lg font-medium text-white hover:bg-[#e06b35] transition-colors"
             >
               Next
             </button>
@@ -67,11 +67,11 @@ export default function LoginPage() {
               placeholder="Verification Code"
               value={verificationCode}
               onChange={(e) => setVerificationCode(e.target.value)}
-              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#f57c00] focus:outline-none transition-colors"
+              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors"
             />
             <button
               type="submit"
-              className="w-full rounded-full bg-[#f57c00] py-3 text-lg font-medium text-white hover:bg-[#e06c00] transition-colors"
+              className="w-full rounded-full bg-[#ff7c46] py-3 text-lg font-medium text-white hover:bg-[#e06b35] transition-colors"
             >
               Sign In
             </button>
