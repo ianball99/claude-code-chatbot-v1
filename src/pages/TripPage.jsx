@@ -42,8 +42,6 @@ export default function TripPage() {
   const [summaryHtml, setSummaryHtml] = useState("");
   const [tripTitle, setTripTitle] = useState(stateTitle || decodedRef);
   const [tripMeta, setTripMeta] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState("");
 
   const formatDetails = async (rawJson) => {
     try {
@@ -108,29 +106,6 @@ export default function TripPage() {
       .catch((e) => setDetailsContent(`Error loading trip: ${e.message}`))
       .finally(() => setDetailsLoading(false));
   }, [decodedRef]);
-
-  const handleSave = async () => {
-    if (!tripMeta || !summaryHtml) return;
-    setSaving(true);
-    setSaveStatus("");
-    try {
-      await callMcpTool("upload_created_html_itinerary_document", {
-        reference_code: decodedRef,
-        vamoos_id: tripMeta.vamoos_id,
-        departure_date: tripMeta.departure_date,
-        return_date: tripMeta.return_date,
-        document_name: `Trip Summary-${tripTitle}`,
-        html_content: summaryHtml,
-      });
-      setSaveStatus("saved");
-      setTimeout(() => setSaveStatus(""), 3000);
-    } catch (e) {
-      setSaveStatus("error");
-      setTimeout(() => setSaveStatus(""), 3000);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleTripMutated = useCallback(
     (toolName) => {
@@ -239,15 +214,6 @@ export default function TripPage() {
                 {tab}
               </button>
             ))}
-            {activeTab === "Summary" && summaryHtml && (
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="ml-auto mr-3 px-3 py-1 text-xs font-medium rounded bg-[#ff7c46] text-white disabled:opacity-50 transition-opacity"
-              >
-                {saving ? "Saving…" : saveStatus === "saved" ? "Saved ✓" : saveStatus === "error" ? "Error ✗" : "Save"}
-              </button>
-            )}
           </div>
 
           {/* Tab content */}
