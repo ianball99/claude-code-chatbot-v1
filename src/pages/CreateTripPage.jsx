@@ -172,7 +172,7 @@ export default function CreateTripPage() {
       <div className="flex items-center gap-3 border-b border-[#505050] px-4 py-3">
         <button
           onClick={() => navigate("/home")}
-          className="text-white hover:text-[#f57c00] transition-colors"
+          className="text-white hover:text-[#ff7c46] transition-colors"
           disabled={loading}
         >
           <ArrowLeft className="h-6 w-6" strokeWidth={2} />
@@ -194,7 +194,7 @@ export default function CreateTripPage() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={loading}
-              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#f57c00] focus:outline-none transition-colors disabled:opacity-50"
+              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors disabled:opacity-50"
             />
           </div>
 
@@ -206,10 +206,10 @@ export default function CreateTripPage() {
               value={startDateInput}
               onChange={(e) => setStartDateInput(e.target.value)}
               disabled={loading}
-              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#f57c00] focus:outline-none transition-colors disabled:opacity-50"
+              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors disabled:opacity-50"
             />
             {startDateInput && (
-              <p className={`text-xs px-2 ${startDateIso ? "text-[#f57c00]" : "text-red-400"}`}>
+              <p className={`text-xs px-2 ${startDateIso ? "text-[#ff7c46]" : "text-red-400"}`}>
                 {startDateIso ? formatDateForDisplay(startDateIso) : "Date not recognised"}
               </p>
             )}
@@ -223,10 +223,10 @@ export default function CreateTripPage() {
               value={endDateInput}
               onChange={(e) => setEndDateInput(e.target.value)}
               disabled={loading}
-              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#f57c00] focus:outline-none transition-colors disabled:opacity-50"
+              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors disabled:opacity-50"
             />
             {endDateInput && (
-              <p className={`text-xs px-2 ${endDateIso ? "text-[#f57c00]" : "text-red-400"}`}>
+              <p className={`text-xs px-2 ${endDateIso ? "text-[#ff7c46]" : "text-red-400"}`}>
                 {endDateIso ? formatDateForDisplay(endDateIso) : "Date not recognised"}
               </p>
             )}
@@ -237,7 +237,7 @@ export default function CreateTripPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-full bg-[#f57c00] py-3 text-lg font-medium text-white hover:bg-[#e06c00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-full bg-[#ff7c46] py-3 text-lg font-medium text-white hover:bg-[#e06b35] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (loadingStep || "Creating trip...") : "Create Trip"}
           </button>
