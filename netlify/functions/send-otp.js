@@ -107,10 +107,18 @@ export const handler = async (event) => {
   if (!emailRes.ok) {
     // Clean up stored OTP so user can retry
     await store.delete(key).catch(() => {});
+    let resendError = "";
+    try {
+      const errBody = await emailRes.json();
+      resendError = errBody.message || errBody.error || JSON.stringify(errBody);
+    } catch {
+      resendError = `HTTP ${emailRes.status}`;
+    }
+    console.error("Resend API error:", resendError);
     return {
       statusCode: 500,
       headers: CORS,
-      body: JSON.stringify({ error: "Failed to send verification email. Please try again." }),
+      body: JSON.stringify({ error: `Failed to send verification email: ${resendError}` }),
     };
   }
 
