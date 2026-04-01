@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 async function checkVerified(email, browserId) {
@@ -22,17 +22,6 @@ export default function LoginPage() {
   const [verificationCode, setVerificationCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  // On mount: if email + browserId are already in localStorage and still verified,
-  // skip the login form entirely and go straight to /home
-  useEffect(() => {
-    const savedEmail = localStorage.getItem("vamoos_user_email");
-    const browserId = localStorage.getItem("vamoos_browser_id");
-    if (!savedEmail || !browserId) return;
-    checkVerified(savedEmail, browserId).then((verified) => {
-      if (verified) navigate("/home", { replace: true });
-    });
-  }, [navigate]);
 
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
