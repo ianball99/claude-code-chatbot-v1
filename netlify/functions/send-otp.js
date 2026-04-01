@@ -97,7 +97,7 @@ export const handler = async (event) => {
       Authorization: `Bearer ${resendApiKey}`,
     },
     body: JSON.stringify({
-      from: "Vamoos Chatbot <onboarding@resend.dev>",
+      from: "Vamoos Chatbot <noreply@send.infoalchemy.co.uk>",
       to: [email],
       subject: "Your verification code",
       text: `Your verification code is: ${code}\n\nThis code expires in 5 minutes. If you did not request this, you can ignore this email.`,
