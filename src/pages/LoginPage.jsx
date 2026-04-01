@@ -6,18 +6,93 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [step, setStep] = useState(1);
   const [verificationCode, setVerificationCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleEmailSubmit = (e) => {
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
-    if (email.trim()) {
-      localStorage.setItem("vamoos_user_email", email.trim());
+    if (!email.trim()) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/.netlify/functions/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to send verification code. Please try again.");
+        return;
+      }
+
       setStep(2);
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleVerificationSubmit = (e) => {
+  const handleVerificationSubmit = async (e) => {
     e.preventDefault();
-    navigate("/home");
+    if (!verificationCode.trim()) return;
+
+    setLoading(true);
+    setError("");
+
+    const browserId = localStorage.getItem("vamoos_browser_id");
+
+    try {
+      const res = await fetch("/.netlify/functions/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          code: verificationCode.trim(),
+          browserId,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Verification failed. Please try again.");
+        return;
+      }
+
+      localStorage.setItem("vamoos_user_email", email.trim());
+      navigate("/home");
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setLoading(true);
+    setError("");
+    setVerificationCode("");
+
+    try {
+      const res = await fetch("/.netlify/functions/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to resend code. Please try again.");
+      }
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,19 +115,24 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors"
+              disabled={loading}
+              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors disabled:opacity-50"
             />
+            {error && (
+              <p className="text-center text-sm text-red-400">{error}</p>
+            )}
             <button
               type="submit"
-              className="w-full rounded-full bg-[#ff7c46] py-3 text-lg font-medium text-white hover:bg-[#e06b35] transition-colors"
+              disabled={loading}
+              className="w-full rounded-full bg-[#ff7c46] py-3 text-lg font-medium text-white hover:bg-[#e06b35] transition-colors disabled:opacity-50"
             >
-              Next
+              {loading ? "Sending…" : "Next"}
             </button>
           </form>
         </div>
       )}
 
-      {/* Step 2: Verification (skip-through) */}
+      {/* Step 2: Verification */}
       {step === 2 && (
         <div className="flex flex-1 flex-col items-center px-8 pt-12">
           <p className="mb-2 text-center text-xl text-white leading-relaxed">
@@ -64,21 +144,34 @@ export default function LoginPage() {
           <form onSubmit={handleVerificationSubmit} className="w-full max-w-sm space-y-4">
             <input
               type="text"
-              placeholder="Verification Code"
+              placeholder="6-digit code"
               value={verificationCode}
               onChange={(e) => setVerificationCode(e.target.value)}
-              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors"
+              maxLength={6}
+              disabled={loading}
+              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors disabled:opacity-50"
             />
+            {error && (
+              <p className="text-center text-sm text-red-400">{error}</p>
+            )}
             <button
               type="submit"
-              className="w-full rounded-full bg-[#ff7c46] py-3 text-lg font-medium text-white hover:bg-[#e06b35] transition-colors"
+              disabled={loading}
+              className="w-full rounded-full bg-[#ff7c46] py-3 text-lg font-medium text-white hover:bg-[#e06b35] transition-colors disabled:opacity-50"
             >
-              Sign In
+              {loading ? "Verifying…" : "Sign In"}
             </button>
           </form>
           <button
-            onClick={() => setStep(1)}
-            className="mt-6 text-[#808080] hover:text-[#a0a0a0] transition-colors text-sm"
+            onClick={handleResend}
+            disabled={loading}
+            className="mt-4 text-[#ff7c46] hover:text-[#e06b35] transition-colors text-sm disabled:opacity-50"
+          >
+            Resend code
+          </button>
+          <button
+            onClick={() => { setStep(1); setError(""); setVerificationCode(""); }}
+            className="mt-3 text-[#808080] hover:text-[#a0a0a0] transition-colors text-sm"
           >
             Back to email
           </button>
