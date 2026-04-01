@@ -1,4 +1,4 @@
-# VAMOOS Chatbot v2.2
+# VAMOOS Chatbot v2.3
 
 A React-based AI chatbot interface for managing [Vamoos](https://www.vamoos.com) travel itineraries. Built with React + Vite, deployed on Netlify with serverless functions.
 
@@ -11,6 +11,7 @@ A React-based AI chatbot interface for managing [Vamoos](https://www.vamoos.com)
 - **File Uploads** — attach images, GPX tracks, and documents to itineraries
 - **Trip Index** — per-user trip list persisted in Netlify Blobs
 - **Split-Pane UI** — draggable divider between trip details and chat pane
+- **Email Verification** — 6-digit OTP sent via email on each new browser; verification valid for 7 days per browser
 
 ## Tech Stack
 
@@ -23,6 +24,7 @@ A React-based AI chatbot interface for managing [Vamoos](https://www.vamoos.com)
 | AI | Anthropic Claude (claude-3-5-haiku) |
 | MCP | Vamoos MCP Server (Cloudflare Workers) |
 | Storage | Netlify Blobs |
+| Email | Resend API |
 | PDF | html2pdf.js (CDN) |
 | Deployment | Netlify |
 
@@ -52,7 +54,10 @@ claude-code-chatbot-v1/
         ├── trip-index.js           # Per-user trip list (Netlify Blobs)
         ├── format-trip.js          # AI-powered trip JSON → readable text
         ├── generate-trip-image.js  # Stability AI background image generation
-        └── fetch-document.js       # Proxy to fetch saved trip summary HTML
+        ├── fetch-document.js       # Proxy to fetch saved trip summary HTML
+        ├── send-otp.js             # Generate and email 6-digit OTP via Resend
+        ├── verify-otp.js           # Validate OTP; write browser verification record
+        └── check-verification.js   # Check if browser+email is verified (7-day window)
 ```
 
 ## Local Development
@@ -72,6 +77,9 @@ Configure in your Netlify site dashboard under **Site settings → Environment v
 | `STABILITY_API_KEY` | Stability AI key for background image generation |
 | `VAMOOS_MCP_URL` | Vamoos MCP server base URL (Cloudflare Worker) |
 | `VAMOOS_API_KEY` | Vamoos API authentication key |
+| `RESEND_API_KEY` | Resend API key for sending OTP verification emails |
+| `NETLIFY_SITE_ID` | Netlify site ID for Blobs access |
+| `NETLIFY_BLOBS_TOKEN` | Netlify Blobs token for server-side storage access |
 
 ### Running Locally
 
@@ -119,7 +127,7 @@ File uploads (images, PDFs, GPX) are handled **client-side** by `ChatPanel` via 
 
 | Route | Component | Description |
 |-------|-----------|-------------|
-| `/` | `LoginPage` | Email input → OTP verification |
+| `/` | `LoginPage` | Email input → OTP verification (skipped if browser already verified) |
 | `/verify` | `VerifyPage` | Standalone OTP page |
 | `/home` | `HomePage` | Trip list dashboard |
 | `/trip/:refCode` | `TripPage` | Split-pane trip detail + AI chat |
@@ -148,6 +156,15 @@ Calls the Stability AI API to generate a landscape background image for a newly-
 #### `fetch-document.js`
 Proxies a GET request to a pre-signed S3 URL (from the Vamoos documents store), returning the raw HTML content of a saved trip summary document.
 
+#### `send-otp.js`
+Generates a 6-digit OTP, stores it in Netlify Blobs (`otp-store`) with a 5-minute expiry, and emails it to the user via the Resend API. Rate-limited: rejects if a valid unexpired code already exists for that email.
+
+#### `verify-otp.js`
+Validates a submitted OTP against the stored record. On success, deletes the OTP and writes a browser verification record to Netlify Blobs (`browser-verifications`) keyed by `email:browserId`.
+
+#### `check-verification.js`
+Looks up a `browser-verifications` record for a given `email` + `browserId` pair. Returns `{ verified: true }` if the record exists and is less than 7 days old, otherwise `{ verified: false }`.
+
 ## Colour Palette
 
 | Token | Value | Usage |
@@ -160,7 +177,24 @@ Proxies a GET request to a pre-signed S3 URL (from the Vamoos documents store), 
 | `--muted-foreground` | `#c0c0c0` | Secondary text |
 | `--foreground` | `#ffffff` | Primary text |
 
+### Netlify Blobs Stores
+
+| Store | Key format | Value | Purpose |
+|-------|-----------|-------|---------|
+| `trip-index` | `encodeURIComponent(email)` | `[{ refCode, title, ... }]` | Per-user trip list |
+| `otp-store` | `encodeURIComponent(email)` | `{ code, expiresAt }` | Temporary OTP (5-min TTL) |
+| `browser-verifications` | `encodeURIComponent(email):encodeURIComponent(browserId)` | `{ verifiedAt }` | Browser verification records (7-day validity) |
+
 ## Version History
+
+### v2.3 (2026-04-01)
+- Real email OTP verification per browser via Resend API
+- 6-digit code sent to email, expires after 5 minutes
+- Browser UUID (`vamoos_browser_id`) generated in localStorage on first visit
+- Verification valid for 7 days per browser; prompts re-verification after expiry
+- `AuthGuard` component wraps all protected routes — redirects to `/` if not verified
+- `send-otp`, `verify-otp`, `check-verification` Netlify functions added
+- Rate-limiting on OTP send (blocks resend while a valid code exists)
 
 ### v2.2 (2026-03-31)
 - Added comprehensive project documentation (this README)
