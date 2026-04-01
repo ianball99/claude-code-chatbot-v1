@@ -25,6 +25,11 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        // A valid code was already sent — just advance so the user can enter it
+        if (res.status === 429) {
+          setStep(2);
+          return;
+        }
         setError(data.error || "Failed to send verification code. Please try again.");
         return;
       }
