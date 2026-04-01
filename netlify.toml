@@ -5,6 +5,11 @@
 [functions]
   directory = "netlify/functions"
   external_node_modules = ["@netlify/blobs"]
+
+[functions."generate-summary"]
+  timeout = 26
+
+[functions."chat"]
   timeout = 26
 
 [build.environment]
