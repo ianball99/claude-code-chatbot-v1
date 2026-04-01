@@ -165,6 +165,33 @@ Validates a submitted OTP against the stored record. On success, deletes the OTP
 #### `check-verification.js`
 Looks up a `browser-verifications` record for a given `email` + `browserId` pair. Returns `{ verified: true }` if the record exists and is less than 7 days old, otherwise `{ verified: false }`.
 
+## Design Decisions
+
+### Browser identity via localStorage UUID (not cookies)
+A UUID is generated with `crypto.randomUUID()` on first visit and stored in localStorage as `vamoos_browser_id`. Cookies were considered but localStorage is simpler for a Netlify SPA with no server-side session management — no CSRF or SameSite complexity. Clearing localStorage or using a new browser generates a fresh UUID, which is the intended behaviour: a genuinely new browser context should require re-verification.
+
+### Netlify Blobs for OTP and verification storage
+The project already uses Netlify Blobs for trip-index, so adding two more stores (`otp-store`, `browser-verifications`) requires zero additional infrastructure. OTP records are short-lived and verification records are a single timestamp — neither needs relational queries, making key-value storage sufficient. Netlify Blobs has no native TTL, so expiry is enforced at read time in application code (`verify-otp.js` and `check-verification.js`) rather than at the storage layer.
+
+### Resend for email delivery
+Chosen for minimal setup: one REST API call, one env var (`RESEND_API_KEY`), no SDK needed. The shared `onboarding@resend.dev` sender was used initially but only delivers to the Resend account owner's email — arbitrary recipients require a verified sending domain. Domain `send.infoalchemy.co.uk` was verified in Resend and used as the from address (`noreply@send.infoalchemy.co.uk`). The free tier (3,000 emails/month) is sufficient for this use case.
+
+### 5-minute OTP expiry
+Short enough that an intercepted code is quickly worthless; long enough for a user on a slow connection to check their email and return to the app. Expiry is enforced server-side in `verify-otp.js` — the client has no ability to extend it.
+
+### 7-day browser verification window
+Balances security (periodic re-verification confirms ongoing email ownership) with convenience (not requiring an OTP on every visit). Checked server-side in `check-verification.js` on every protected route load via `AuthGuard`. Each browser is tracked independently — verifying on one device does not grant access on another.
+
+### Rate-limiting on OTP send (429 response)
+`send-otp.js` rejects a new request if a valid unexpired code already exists for that email, preventing accidental or deliberate email spam. The frontend treats a 429 as a soft signal rather than an error: it advances directly to step 2 (code entry) so the user can enter the code they already have in their inbox.
+
+### Verification checked at two points in LoginPage
+1. **On mount** — if `vamoos_user_email` and `vamoos_browser_id` are already in localStorage and still valid, the user is redirected to `/home` without ever seeing the login form.
+2. **On email submit** — `check-verification` runs before `send-otp`, handling the case where a user signed out and re-enters the same email on an already-verified browser. Avoids sending an unnecessary OTP.
+
+### OTP keyed by email; verification keyed by email:browserId
+Only one valid OTP can exist per email at a time, so a single email key is correct. Verification records are per-browser, so the composite key `email:browserId` captures the specific combination without risk of collision across devices.
+
 ## Colour Palette
 
 | Token | Value | Usage |
