@@ -1,5 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+
+async function checkVerified(email, browserId) {
+  try {
+    const res = await fetch("/.netlify/functions/check-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, browserId }),
+    });
+    const data = await res.json();
+    return data.verified === true;
+  } catch {
+    return false;
+  }
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -9,6 +23,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // On mount: if email + browserId are already in localStorage and still verified,
+  // skip the login form entirely and go straight to /home
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("vamoos_user_email");
+    const browserId = localStorage.getItem("vamoos_browser_id");
+    if (!savedEmail || !browserId) return;
+    checkVerified(savedEmail, browserId).then((verified) => {
+      if (verified) navigate("/home", { replace: true });
+    });
+  }, [navigate]);
+
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim()) return;
@@ -17,6 +42,15 @@ export default function LoginPage() {
     setError("");
 
     try {
+      // If this browser is already verified for this email, skip OTP entirely
+      const browserId = localStorage.getItem("vamoos_browser_id");
+      const alreadyVerified = await checkVerified(email.trim(), browserId);
+      if (alreadyVerified) {
+        localStorage.setItem("vamoos_user_email", email.trim());
+        navigate("/home");
+        return;
+      }
+
       const res = await fetch("/.netlify/functions/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
