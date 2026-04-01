@@ -8,15 +8,7 @@ export default function VerifyPage() {
     <div className="flex min-h-screen flex-col items-center bg-[#3a3a3a]">
       {/* Logo */}
       <div className="flex flex-col items-center pt-16 pb-8">
-        <div className="flex items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f57c00]">
-            <span className="text-3xl font-bold text-white">V</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-3xl font-bold tracking-wide text-[#f57c00]">VAMOOS</span>
-            <span className="text-sm text-[#f57c00]">Looking forward</span>
-          </div>
-        </div>
+        <img src="/vamoos-logo-and-text-transparent.png" alt="Vamoos" className="h-20 w-auto" />
       </div>
 
       <div className="flex flex-1 flex-col items-center px-8 pt-12">
@@ -27,7 +19,7 @@ export default function VerifyPage() {
         </p>
         <button
           onClick={() => navigate("/home")}
-          className="w-full max-w-sm rounded-full bg-[#f57c00] py-3 text-lg font-medium text-white hover:bg-[#e06c00] transition-colors"
+          className="w-full max-w-sm rounded-full bg-[#ff7c46] py-3 text-lg font-medium text-white hover:bg-[#e06b35] transition-colors"
         >
           Continue
         </button>

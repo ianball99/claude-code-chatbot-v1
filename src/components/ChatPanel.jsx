@@ -128,7 +128,6 @@ function Bubble({ msg }) {
             className="text-sm leading-relaxed whitespace-pre-wrap break-words"
             style={{
               color: isUser ? "#fff" : "rgba(255,255,255,0.88)",
-              fontFamily: "Georgia, serif",
               marginTop: msg.toolCalls?.length ? 8 : 0,
             }}
           >
@@ -148,7 +147,7 @@ function SettingsPanel({ workerUrl, onSave, onClose }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-[#2a2a2a] border border-[#f57c00]/25 rounded-2xl p-7 w-full max-w-sm shadow-2xl">
-        <div className="flex justify-between items-center mb-5 text-white/80 font-serif text-lg">
+        <div className="flex justify-between items-center mb-5 text-white/80 text-lg">
           Settings
           <button onClick={onClose} className="text-white/40 text-base bg-transparent border-none cursor-pointer">
             ✕
@@ -181,12 +180,6 @@ function SettingsPanel({ workerUrl, onSave, onClose }) {
 
 // ---------------------------------------------------------------------------
 // Main ChatPanel component
-// Props:
-//   initialSystemContext     - string prepended to first message (e.g. trip refCode)
-//   onHtmlGenerated(html)    - called when HTML itinerary doc is available
-//   onTripMutated(name, result) - called after each MCP tool call completes
-//   onRefCodeKnown(refCode)  - called when create_itinerary result contains a ref code
-//   onPersonAdded(email, refCode) - called when add_person_to_itinerary completes
 // ---------------------------------------------------------------------------
 
 export default function ChatPanel({
@@ -219,7 +212,6 @@ export default function ChatPanel({
     localStorage.setItem(WORKER_URL_KEY, url);
   };
 
-  // Convert HTML string to PDF blob using html2pdf.js (loaded via CDN in index.html)
   const htmlToPdfBlob = (html) =>
     new Promise((resolve, reject) => {
       const container = document.createElement("div");
@@ -250,7 +242,6 @@ export default function ChatPanel({
     let blob, filename, contentType;
 
     if (inp.html_content) {
-      // Fire callback so parent can show HTML in Summary tab BEFORE converting to PDF
       onHtmlGenerated?.(inp.html_content);
       try {
         blob = await htmlToPdfBlob(inp.html_content);
@@ -328,7 +319,6 @@ export default function ChatPanel({
     return data.result;
   };
 
-  // Try to extract a reference code from a create_itinerary result string
   const extractRefCode = (toolName, result) => {
     if (toolName !== "create_itinerary") return null;
     try {
@@ -366,7 +356,6 @@ export default function ChatPanel({
         return updated;
       });
 
-      // Fire parent callbacks for each completed tool call
       pendingMcpCalls.forEach((tc, i) => {
         onTripMutated?.(tc.name, results[i]);
         const ref = extractRefCode(tc.name, results[i]);
@@ -456,7 +445,6 @@ export default function ChatPanel({
     if (taRef.current) taRef.current.style.height = "auto";
 
     const contentParts = [];
-    // Prepend system context on the very first message
     const contextPrefix =
       initialSystemContext && apiHistory.length === 0
         ? `[Context: ${initialSystemContext}]\n\n`
@@ -543,10 +531,8 @@ export default function ChatPanel({
       {/* Header bar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#505050] shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-[#f57c00] flex items-center justify-center text-white font-bold text-sm">
-            V
-          </div>
-          <span className="text-white/80 text-sm font-serif">Vamoos AI Assistant</span>
+          <img src="/vamoos-logo-transparent.png" alt="Vamoos" className="w-7 h-7 object-contain" />
+          <span className="text-white/80 text-sm">Vamoos AI Assistant</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -566,7 +552,7 @@ export default function ChatPanel({
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="text-white/70 font-serif text-lg mb-1">How can I help you?</div>
+            <div className="text-white/70 text-lg mb-1">How can I help you?</div>
             <div className="text-white/30 text-sm italic">
               Manage Vamoos itineraries — create, update, and upload files.
             </div>
@@ -618,8 +604,8 @@ export default function ChatPanel({
 
       {/* Input bar */}
       <div className="shrink-0 px-4 pb-4 pt-2 border-t border-[#505050]">
-        <div className="flex items-end gap-2 bg-[#4a4a4a] border border-[#606060] rounded-full px-4 py-2 focus-within:border-[#f57c00] transition-colors">
-          <label className="text-white/40 hover:text-[#f57c00] cursor-pointer text-xl shrink-0 transition-colors">
+        <div className="flex items-end gap-2 bg-[#4a4a4a] border border-[#606060] rounded-full px-4 py-2 focus-within:border-[#ff7c46] transition-colors">
+          <label className="text-white/40 hover:text-[#ff7c46] cursor-pointer text-xl shrink-0 transition-colors">
             ＋
             <input
               type="file"
@@ -643,13 +629,13 @@ export default function ChatPanel({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
             }}
-            className="flex-1 bg-transparent border-none outline-none text-white/88 font-serif text-sm leading-relaxed resize-none min-h-6 max-h-28"
+            className="flex-1 bg-transparent border-none outline-none text-white/88 text-sm leading-relaxed resize-none min-h-6 max-h-28"
             style={{ color: "rgba(255,255,255,0.88)" }}
           />
           <button
             onClick={() => send()}
             disabled={(!input.trim() && pendingImages.length === 0) || loading}
-            className="w-8 h-8 rounded-full bg-[#f57c00] text-white border-none flex items-center justify-center cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+            className="w-8 h-8 rounded-full bg-[#ff7c46] text-white border-none flex items-center justify-center cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
           >
             <Send size={14} />
           </button>

@@ -91,8 +91,7 @@ export default function CreateTripPage() {
     const email = localStorage.getItem("vamoos_user_email") || "";
 
     try {
-      // Step 1: create the trip
-      setLoadingStep("Creating trip…");
+      setLoadingStep("Creating trip...");
       const createResult = await callMcpTool("create_itinerary", {
         reference_code: refCode,
         departure_date: startDateIso,
@@ -100,15 +99,13 @@ export default function CreateTripPage() {
         field1: title.trim(),
       });
 
-      // Try to parse vamoos_id from create response
       let vamoosId = null;
       try {
         const parsed = JSON.parse(createResult);
         vamoosId = parsed.vamoos_id ?? parsed.id ?? null;
       } catch {}
 
-      // Step 2: add person + fetch background image in parallel
-      setLoadingStep("Adding details…");
+      setLoadingStep("Adding details...");
       const [, imageResult] = await Promise.allSettled([
         callMcpTool("add_person_to_itinerary", {
           reference_code: refCode,
@@ -122,8 +119,6 @@ export default function CreateTripPage() {
         }).then((r) => r.json()),
       ]);
 
-      // Step 3: upload background image.
-      // If vamoos_id wasn't in the create response, fetch it via get_itinerary.
       if (imageResult.status === "fulfilled" && imageResult.value?.imageData) {
         if (!vamoosId) {
           try {
@@ -133,7 +128,7 @@ export default function CreateTripPage() {
           } catch {}
         }
         if (vamoosId) {
-          setLoadingStep("Uploading background…");
+          setLoadingStep("Uploading background...");
           const { imageData, contentType, filename } = imageResult.value;
           try {
             await callMcpTool("upload_background_image", {
@@ -151,9 +146,8 @@ export default function CreateTripPage() {
         }
       }
 
-      // Step 4: register trip in blob store — awaited so it completes before navigate
       if (email) {
-        setLoadingStep("Saving…");
+        setLoadingStep("Saving...");
         await addTripToIndex(email, {
           refCode,
           title: title.trim(),
@@ -162,7 +156,7 @@ export default function CreateTripPage() {
         });
       }
 
-      setLoadingStep("Opening trip…");
+      setLoadingStep("Opening trip...");
       navigate(`/trip/${encodeURIComponent(refCode)}`, {
         state: { title: title.trim(), startDate: startDateIso },
       });
@@ -178,7 +172,7 @@ export default function CreateTripPage() {
       <div className="flex items-center gap-3 border-b border-[#505050] px-4 py-3">
         <button
           onClick={() => navigate("/home")}
-          className="text-white hover:text-[#f57c00] transition-colors"
+          className="text-white hover:text-[#ff7c46] transition-colors"
           disabled={loading}
         >
           <ArrowLeft className="h-6 w-6" strokeWidth={2} />
@@ -187,15 +181,7 @@ export default function CreateTripPage() {
       </div>
 
       <div className="flex flex-col items-center pt-10 pb-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f57c00]">
-            <span className="text-2xl font-bold text-white">V</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-2xl font-bold tracking-wide text-[#f57c00]">VAMOOS</span>
-            <span className="text-xs text-[#f57c00]">New trip or event</span>
-          </div>
-        </div>
+        <img src="/vamoos-logo-and-text-transparent.png" alt="Vamoos" className="h-16 w-auto" />
       </div>
 
       <div className="flex flex-1 flex-col items-center px-8 pt-4">
@@ -208,7 +194,7 @@ export default function CreateTripPage() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={loading}
-              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#f57c00] focus:outline-none transition-colors disabled:opacity-50"
+              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors disabled:opacity-50"
             />
           </div>
 
@@ -220,10 +206,10 @@ export default function CreateTripPage() {
               value={startDateInput}
               onChange={(e) => setStartDateInput(e.target.value)}
               disabled={loading}
-              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#f57c00] focus:outline-none transition-colors disabled:opacity-50"
+              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors disabled:opacity-50"
             />
             {startDateInput && (
-              <p className={`text-xs px-2 ${startDateIso ? "text-[#f57c00]" : "text-red-400"}`}>
+              <p className={`text-xs px-2 ${startDateIso ? "text-[#ff7c46]" : "text-red-400"}`}>
                 {startDateIso ? formatDateForDisplay(startDateIso) : "Date not recognised"}
               </p>
             )}
@@ -237,10 +223,10 @@ export default function CreateTripPage() {
               value={endDateInput}
               onChange={(e) => setEndDateInput(e.target.value)}
               disabled={loading}
-              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#f57c00] focus:outline-none transition-colors disabled:opacity-50"
+              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors disabled:opacity-50"
             />
             {endDateInput && (
-              <p className={`text-xs px-2 ${endDateIso ? "text-[#f57c00]" : "text-red-400"}`}>
+              <p className={`text-xs px-2 ${endDateIso ? "text-[#ff7c46]" : "text-red-400"}`}>
                 {endDateIso ? formatDateForDisplay(endDateIso) : "Date not recognised"}
               </p>
             )}
@@ -251,9 +237,9 @@ export default function CreateTripPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-full bg-[#f57c00] py-3 text-lg font-medium text-white hover:bg-[#e06c00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-full bg-[#ff7c46] py-3 text-lg font-medium text-white hover:bg-[#e06b35] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? (loadingStep || "Creating trip…") : "Create Trip"}
+            {loading ? (loadingStep || "Creating trip...") : "Create Trip"}
           </button>
         </form>
       </div>

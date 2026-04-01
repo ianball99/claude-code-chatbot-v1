@@ -52,18 +52,15 @@ export default function HomePage() {
       <div className="shrink-0">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-4 border-b border-[#707070]">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f57c00]">
-            <span className="text-xl font-bold text-white">V</span>
-          </div>
-          <div>
-            <div className="text-[#f57c00] font-bold tracking-wide">VAMOOS</div>
+          <div className="flex flex-col">
+            <img src="/vamoos-logo-and-text-transparent.png" alt="Vamoos" className="h-10 w-auto" />
             {email && <div className="text-[11px] text-[#a0a0a0]">{email}</div>}
           </div>
         </div>
 
         <button
           onClick={loadTrips}
-          className="flex items-center gap-4 w-full px-4 py-4 text-[#f57c00] hover:opacity-80 transition-opacity"
+          className="flex items-center gap-4 w-full px-4 py-4 text-[#ff7c46] hover:opacity-80 transition-opacity"
         >
           <RefreshCw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} strokeWidth={2} />
           <span className="text-[17px]">Refresh</span>
@@ -73,7 +70,7 @@ export default function HomePage() {
 
         <button
           onClick={() => navigate("/create-trip")}
-          className="flex items-center gap-4 w-full px-4 py-5 text-[#f57c00] hover:opacity-80 transition-opacity"
+          className="flex items-center gap-4 w-full px-4 py-5 text-[#ff7c46] hover:opacity-80 transition-opacity"
         >
           <Plus className="h-5 w-5" strokeWidth={2} />
           <span className="text-[17px]">Add new trip or event</span>
@@ -82,15 +79,20 @@ export default function HomePage() {
         <div className="px-4 pb-3">
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-2 text-[#f57c00] hover:opacity-80 transition-opacity text-[15px]"
+            className="flex items-center gap-2 text-[#ff7c46] hover:opacity-80 transition-opacity text-[15px]"
           >
             <LogOut className="h-4 w-4" />
             Sign out
           </button>
         </div>
 
-        <div className="bg-[#4a4a4a] px-4 py-3 border-t border-[#707070]">
+        <div className="bg-[#4a4a4a] px-4 py-3 border-t border-[#707070] flex items-center justify-between">
           <h2 className="text-base font-medium text-white">Your Trips</h2>
+          {!loading && trips.length > 0 && (
+            <span className="text-xs font-mono text-[#808080] bg-[#3d3d3d] px-2 py-0.5 rounded-full">
+              {trips.length}
+            </span>
+          )}
         </div>
       </div>
 
@@ -104,7 +106,7 @@ export default function HomePage() {
         {error && !loading && (
           <div className="px-4 py-4 text-sm text-red-400">
             <p className="mb-2">Error loading trips: {error}</p>
-            <button onClick={loadTrips} className="text-[#f57c00] underline">Retry</button>
+            <button onClick={loadTrips} className="text-[#ff7c46] underline">Retry</button>
           </div>
         )}
 
@@ -120,10 +122,10 @@ export default function HomePage() {
               <button
                 key={trip.refCode || i}
                 onClick={() => navigate(`/trip/${encodeURIComponent(trip.refCode)}`)}
-                className="flex items-center justify-between w-full px-4 py-4 text-left hover:bg-[#555555] transition-colors border-b border-[#505050]/40"
+                className="group flex items-center justify-between w-full px-4 py-4 text-left hover:bg-[#555555] transition-colors border-b border-[#505050]/40 border-l-[3px] border-l-transparent hover:border-l-[#ff7c46]"
               >
                 <div>
-                  <div className="text-[#c0c0c0] text-[15px]">{trip.title}</div>
+                  <div className="text-[#c0c0c0] text-[15px] group-hover:text-white transition-colors">{trip.title}</div>
                   {trip.departureDate && (
                     <div className="text-[#808080] text-[12px] mt-0.5">
                       {formatDate(trip.departureDate)}
@@ -131,7 +133,7 @@ export default function HomePage() {
                     </div>
                   )}
                 </div>
-                <ChevronRight className="h-4 w-4 text-[#707070] shrink-0" />
+                <ChevronRight className="h-4 w-4 text-[#707070] group-hover:text-[#ff7c46] transition-colors shrink-0" />
               </button>
             ))}
           </div>

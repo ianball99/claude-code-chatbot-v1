@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
-  const [step, setStep] = useState(1); // 1 = email, 2 = verification code
+  const [step, setStep] = useState(1);
   const [verificationCode, setVerificationCode] = useState("");
 
   const handleEmailSubmit = (e) => {
@@ -24,15 +24,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col bg-[#3a3a3a]">
       {/* Logo */}
       <div className="flex flex-col items-center pt-16 pb-8">
-        <div className="flex items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f57c00]">
-            <span className="text-3xl font-bold text-white">V</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-3xl font-bold tracking-wide text-[#f57c00]">VAMOOS</span>
-            <span className="text-sm text-[#f57c00]">Looking forward</span>
-          </div>
-        </div>
+        <img src="/vamoos-logo-and-text-transparent.png" alt="Vamoos" className="h-20 w-auto" />
       </div>
 
       {/* Step 1: Email */}
@@ -48,11 +40,11 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#f57c00] focus:outline-none transition-colors"
+              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors"
             />
             <button
               type="submit"
-              className="w-full rounded-full bg-[#707070] py-3 text-lg font-medium text-white hover:bg-[#808080] transition-colors"
+              className="w-full rounded-full bg-[#ff7c46] py-3 text-lg font-medium text-white hover:bg-[#e06b35] transition-colors"
             >
               Next
             </button>
@@ -75,11 +67,11 @@ export default function LoginPage() {
               placeholder="Verification Code"
               value={verificationCode}
               onChange={(e) => setVerificationCode(e.target.value)}
-              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#f57c00] focus:outline-none transition-colors"
+              className="w-full rounded-full border border-[#808080] bg-transparent px-6 py-3 text-white placeholder-[#808080] focus:border-[#ff7c46] focus:outline-none transition-colors"
             />
             <button
               type="submit"
-              className="w-full rounded-full bg-[#707070] py-3 text-lg font-medium text-white hover:bg-[#808080] transition-colors"
+              className="w-full rounded-full bg-[#ff7c46] py-3 text-lg font-medium text-white hover:bg-[#e06b35] transition-colors"
             >
               Sign In
             </button>
