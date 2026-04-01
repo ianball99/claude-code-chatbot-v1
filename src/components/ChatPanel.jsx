@@ -15,7 +15,7 @@ function ThinkingDots() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="w-2 h-2 rounded-full bg-[#f57c00]"
+          className="w-2 h-2 rounded-full bg-[#ff7c46]"
           style={{ animation: `bop 1.2s ease-in-out ${i * 0.2}s infinite` }}
         />
       ))}
@@ -35,24 +35,24 @@ function ToolCallCard({ tc }) {
       className="my-1.5 rounded-xl px-3 py-2"
       style={{
         background: "rgba(0,0,0,0.25)",
-        border: `1px solid ${isErr ? "rgba(220,80,80,0.3)" : "rgba(245,124,0,0.25)"}`,
+        border: `1px solid ${isErr ? "rgba(220,80,80,0.3)" : "rgba(255,124,70,0.25)"}`,
       }}
     >
       <div className="flex items-center gap-2">
-        <span className="text-[#f57c00] text-xs">⚙</span>
-        <span className="font-mono text-[11px] text-[#f57c00]">{tc.name}</span>
+        <span className="text-[#ff7c46] text-xs">⚙</span>
+        <span className="font-mono text-[11px] text-[#ff7c46]">{tc.name}</span>
         <span
           className="ml-auto font-mono text-[9px] px-2 py-0.5 rounded-full"
           style={{
-            color: isPending ? "#f57c00" : isErr ? "#ef5350" : "#4caf50",
+            color: isPending ? "#ff7c46" : isErr ? "#ef5350" : "#4caf50",
             background: isPending
-              ? "rgba(245,124,0,0.1)"
+              ? "rgba(255,124,70,0.1)"
               : isErr
               ? "rgba(220,80,80,0.1)"
               : "rgba(76,175,80,0.1)",
             border: `1px solid ${
               isPending
-                ? "rgba(245,124,0,0.25)"
+                ? "rgba(255,124,70,0.25)"
                 : isErr
                 ? "rgba(220,80,80,0.25)"
                 : "rgba(76,175,80,0.25)"
@@ -94,14 +94,16 @@ function Bubble({ msg }) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-1`}>
       {!isUser && (
-        <div className="w-8 h-8 rounded-full shrink-0 bg-[#f57c00] flex items-center justify-center text-sm font-bold text-white mr-2.5 mt-0.5">
-          V
-        </div>
+        <img
+          src="/vamoos-logo-transparent.png"
+          alt="Vamoos"
+          className="w-8 h-8 shrink-0 object-contain mr-2.5 mt-0.5"
+        />
       )}
       <div
         className="max-w-[78%] rounded-2xl px-4 py-3"
         style={{
-          background: isUser ? "#f57c00" : "rgba(255,255,255,0.06)",
+          background: isUser ? "#ff7c46" : "rgba(255,255,255,0.06)",
           borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
           border: isUser ? "none" : "1px solid rgba(255,255,255,0.1)",
         }}
@@ -146,7 +148,7 @@ function SettingsPanel({ workerUrl, onSave, onClose }) {
       className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-[#2a2a2a] border border-[#f57c00]/25 rounded-2xl p-7 w-full max-w-sm shadow-2xl">
+      <div className="bg-[#2a2a2a] border border-[#ff7c46]/25 rounded-2xl p-7 w-full max-w-sm shadow-2xl">
         <div className="flex justify-between items-center mb-5 text-white/80 text-lg">
           Settings
           <button onClick={onClose} className="text-white/40 text-base bg-transparent border-none cursor-pointer">
@@ -169,7 +171,7 @@ function SettingsPanel({ workerUrl, onSave, onClose }) {
         </div>
         <button
           onClick={() => { onSave(val.trim()); onClose(); }}
-          className="w-full py-2.5 bg-[#f57c00] text-white border-none rounded-lg font-mono text-sm font-medium cursor-pointer"
+          className="w-full py-2.5 bg-[#ff7c46] text-white border-none rounded-lg font-mono text-sm font-medium cursor-pointer"
         >
           Save
         </button>
@@ -537,11 +539,11 @@ export default function ChatPanel({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSettings(true)}
-            className="text-white/40 hover:text-[#f57c00] transition-colors"
+            className="text-white/40 hover:text-[#ff7c46] transition-colors"
           >
             <Settings size={15} />
           </button>
-          <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#f57c00] bg-[#f57c00]/10 border border-[#f57c00]/25 rounded-full px-3 py-1">
+          <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#ff7c46] bg-[#ff7c46]/10 border border-[#ff7c46]/25 rounded-full px-3 py-1">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_5px_#4caf50]" />
             live
           </div>
@@ -579,7 +581,7 @@ export default function ChatPanel({
           {pendingImages.map((img, i) => (
             <div
               key={i}
-              className="relative w-14 h-14 rounded-lg overflow-hidden border border-[#f57c00]/30 bg-black/30 flex items-center justify-center"
+              className="relative w-14 h-14 rounded-lg overflow-hidden border border-[#ff7c46]/30 bg-black/30 flex items-center justify-center"
             >
               {img.isImage ? (
                 <img src={img.dataUrl} alt="" className="w-full h-full object-cover" />
