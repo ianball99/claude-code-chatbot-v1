@@ -19,13 +19,14 @@ HTML rules:
 - Include a Google Fonts link for Roboto and a <style> block in <head> for clean, readable formatting
 - Use <h1> for the document title
 - Use <h2> for day headings (e.g. <h2>Day 1 - Monday 5 May</h2>)
+- You MUST include a <h2> section for EVERY day from the departure date to the return date — calculate the full date range and include each day without exception
 - Use <h3> for sub-sections if needed
 - Use <ul> and <li> for bullet points
 - Use <strong> for bold emphasis
 - Use <p> for paragraphs
 - Do NOT use markdown — write proper HTML only
 - Only include information present in the provided data — do not hallucinate or add details not present
-- If certain days have no details yet, include them as a placeholder heading with a note like "No details added yet"
+- If certain days have no details, include them with their day heading and a <p>No details added yet.</p> note — NEVER omit a day from the date range
 
 Use this style in <head>:
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
