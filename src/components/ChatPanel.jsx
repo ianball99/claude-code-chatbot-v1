@@ -536,18 +536,12 @@ export default function ChatPanel({
           <img src="/vamoos-logo-transparent.png" alt="Vamoos" className="w-7 h-7 object-contain" />
           <span className="text-white/80 text-sm">Vamoos AI Assistant</span>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowSettings(true)}
-            className="text-white/40 hover:text-[#ff7c46] transition-colors"
-          >
-            <Settings size={15} />
-          </button>
-          <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#ff7c46] bg-[#ff7c46]/10 border border-[#ff7c46]/25 rounded-full px-3 py-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_5px_#4caf50]" />
-            live
-          </div>
-        </div>
+        <button
+          onClick={() => setShowSettings(true)}
+          className="text-white/40 hover:text-[#ff7c46] transition-colors"
+        >
+          <Settings size={15} />
+        </button>
       </div>
 
       {/* Messages */}
