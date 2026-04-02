@@ -41,7 +41,7 @@ export default function TripPage() {
   const [detailsLoading, setDetailsLoading] = useState(true);
   const [summaryHtml, setSummaryHtml] = useState("");
   const [summaryGenerating, setSummaryGenerating] = useState(false);
-  const [tripTitle, setTripTitle] = useState(stateTitle || decodedRef);
+  const [tripTitle, setTripTitle] = useState(stateTitle);
   const [tripMeta, setTripMeta] = useState(null);
 
   const formatDetails = async (rawJson) => {
