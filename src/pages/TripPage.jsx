@@ -209,7 +209,6 @@ export default function TripPage() {
             </span>
           )}
         </h1>
-        <span className="text-[#707070] text-xs font-mono ml-auto shrink-0">{decodedRef}</span>
       </div>
 
       {/* Split layout */}
