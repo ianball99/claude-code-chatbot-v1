@@ -18,6 +18,7 @@ Rules:
 - Use clear section headings in ALL CAPS followed by a colon (e.g. OVERVIEW:)
 - Use dashes for list items
 - Format all dates as "1 Apr 2026" or "1 Apr 2026 at 14:30 UTC"
+- Do NOT use markdown — no asterisks, no bold, no italic, no backticks, no hashes
 - Skip purely internal/technical fields: id, operator_id, operator_code, is_current_version, source, version, created_at, updated_at, original_created_at, tag, itinerary_id, s3_url, meta (object), routing, passcode_groups, start_time, timezone, type, is_listed, is_public, requested_listing_status, loc_position, on_weather, on_maps, country_iso, icon_id
 - Include all meaningful content fields — if Vamoos adds new fields in future, include them
 - For field1/field2/field3/field4 use labels: Title, Subtitle, Location, Notes
@@ -85,10 +86,13 @@ export const handler = async (event) => {
       };
     }
 
-    const text = (data.content || [])
+    let text = (data.content || [])
       .filter((b) => b.type === "text")
       .map((b) => b.text)
       .join("");
+
+    // Strip any markdown bold/italic markers Claude may have included despite instructions
+    text = text.replace(/\*\*/g, "").replace(/\*/g, "");
 
     return {
       statusCode: 200,
