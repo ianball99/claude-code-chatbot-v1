@@ -89,6 +89,13 @@ function ToolCallCard({ tc }) {
   );
 }
 
+function renderWithBold(text) {
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  return parts.map((part, i) =>
+    i % 2 === 1 ? <strong key={i} style={{ fontWeight: 600 }}>{part}</strong> : part
+  );
+}
+
 function Bubble({ msg }) {
   const isUser = msg.role === "user";
   return (
@@ -133,7 +140,7 @@ function Bubble({ msg }) {
               marginTop: msg.toolCalls?.length ? 8 : 0,
             }}
           >
-            {msg.text}
+            {renderWithBold(msg.text)}
           </div>
         )}
       </div>
