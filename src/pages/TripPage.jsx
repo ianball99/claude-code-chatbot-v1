@@ -140,6 +140,20 @@ export default function TripPage() {
           .then(async (result) => {
             const formatted = await formatDetails(result);
             setDetailsContent(formatted);
+            // Sync blob when fields shown on the home page may have changed
+            if (toolName === "update_itinerary") {
+              let parsed = {};
+              try { parsed = JSON.parse(result); } catch {}
+              const email = localStorage.getItem("vamoos_user_email") || "";
+              if (email) {
+                registerTripForPerson(email, {
+                  refCode: decodedRef,
+                  title: parsed.field1 || parsed.title || decodedRef,
+                  departureDate: parsed.departure_date || "",
+                  returnDate: parsed.return_date || "",
+                });
+              }
+            }
           })
           .catch(() => {});
       }
