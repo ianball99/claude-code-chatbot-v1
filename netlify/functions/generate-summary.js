@@ -18,7 +18,7 @@ HTML rules:
 - Write a complete HTML document with <html>, <head>, and <body> tags
 - Include a Google Fonts link for Roboto and a <style> block in <head> for clean, readable formatting
 - Use <h1> for the document title
-- Use <h2> for day headings (e.g. <h2>Day 1 - Monday 5 May</h2>)
+- Use <h2> for day headings (e.g. <h2>Day 1 - 5 May</h2>) — do NOT include the day of the week
 - You MUST include a <h2> section for EVERY day from the departure date to the return date — calculate the full date range and include each day without exception
 - Use <h3> for sub-sections if needed
 - Use <ul> and <li> for bullet points

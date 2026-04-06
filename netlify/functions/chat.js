@@ -93,7 +93,7 @@ Example structure (expand with actual content):
 <body>
   <h1>Italy Trip - April 2025</h1>
   <p>Travel dates: 1 Apr 2025 - 10 Apr 2025</p>
-  <h2>Day 1 - Monday 1 April 2025</h2>
+  <h2>Day 1 - 1 April 2025</h2>
   <p>Depart London Heathrow on BA123 at 09:00. Arrive Rome FCO at 13:00.</p>
   <ul>
     <li><strong>Hotel:</strong> Hotel Artemide, Via Nazionale 22, Rome. Check-in from 15:00. Booking ref: ART2025.</li>
