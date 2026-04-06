@@ -13,6 +13,7 @@ function parseDate(input) {
     else if (y.length === 2) y = "20" + y;
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
+  if (/^\d+$/.test(s)) return null;
   const parsed = new Date(s);
   if (!isNaN(parsed)) return parsed.toISOString().slice(0, 10);
   return null;
