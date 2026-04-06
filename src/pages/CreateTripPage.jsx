@@ -6,10 +6,11 @@ function parseDate(input) {
   if (!input) return null;
   const s = input.trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  const dmy = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+  const dmy = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})(?:[\/\-\.](\d{2,4}))?$/);
   if (dmy) {
     let [, d, m, y] = dmy;
-    if (y.length === 2) y = "20" + y;
+    if (!y) y = String(new Date().getFullYear());
+    else if (y.length === 2) y = "20" + y;
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
   const parsed = new Date(s);
