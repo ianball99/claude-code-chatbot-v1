@@ -102,7 +102,7 @@ function Bubble({ msg }) {
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-1`}>
       {!isUser && (
         <img
-          src="/vamoos-logo-transparent.png"
+          src="/vamoos-logo-transparent-white-v.png"
           alt="Vamoos"
           className="w-8 h-8 shrink-0 object-contain mr-2.5 mt-0.5"
         />
@@ -540,7 +540,7 @@ export default function ChatPanel({
       {/* Header bar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#505050] shrink-0">
         <div className="flex items-center gap-2">
-          <img src="/vamoos-logo-transparent.png" alt="Vamoos" className="w-7 h-7 object-contain" />
+          <img src="/vamoos-logo-transparent-white-v.png" alt="Vamoos" className="w-7 h-7 object-contain" />
           <span className="text-white/80 text-sm">Vamoos AI Assistant</span>
         </div>
         <button

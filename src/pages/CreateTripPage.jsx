@@ -183,7 +183,7 @@ export default function CreateTripPage() {
       </div>
 
       <div className="flex flex-col items-center pt-10 pb-6">
-        <img src="/vamoos-logo-and-text-transparent.png" alt="Vamoos" className="h-16 w-auto" />
+        <img src="/vamoos-logo-and-text-transparent-white-v.png" alt="Vamoos" className="h-16 w-auto" />
       </div>
 
       <div className="flex flex-1 flex-col items-center px-8 pt-4">
