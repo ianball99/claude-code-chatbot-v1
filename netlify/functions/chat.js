@@ -59,7 +59,7 @@ Step 1 - Create a trip in Vamoos using the create_itinerary tool:
 Step 2 - Call upload_created_html_itinerary_document with the following fields:
   - reference_code and vamoos_id from the trip you just created
   - departure_date and return_date
-  - document_name: ALWAYS use "Trip Summary-{trip title}" where trip title is the value of field1 (e.g. if field1 is "Italy April 2026", use document_name: "Trip Summary-Italy April 2026")
+  - document_name: ALWAYS use "Trip Summary" — this is a fixed name used for every trip regardless of title
   - html_content: the full itinerary written as a complete HTML document
 
 The server uploads the HTML file directly - you do NOT need to ask the user for any file attachment.
@@ -109,7 +109,7 @@ Modifying an existing trip:
 When the user asks you to add or change anything on an existing trip — flights, accommodation, locations, activities, travellers, or any other data — always do both of the following:
 1. Call the relevant Vamoos tool(s) to make the change (e.g. add_flight_to_itinerary, add_location_to_itinerary, add_person_to_itinerary).
 2. Immediately after, re-generate the complete day-by-day HTML itinerary and call upload_created_html_itinerary_document to replace the existing summary:
-   - Use document_name: "Trip Summary-{field1}" (same naming convention as initial creation)
+   - Use document_name: "Trip Summary" (fixed name, same for every trip regardless of title)
    - The HTML must include a <h2> section for EVERY day from departure_date to return_date — never skip days
    - Include all current trip data (use the data returned by the Vamoos tool, or call get_itinerary first if you need the latest full data)
    - Days with nothing booked still need a day heading and a "No details yet" note
@@ -223,7 +223,7 @@ const TOOLS = [
         vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
         departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
         return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
-        document_name: { type: "string", description: "Display name shown in the Vamoos app. ALWAYS use 'Trip Summary-{trip title}' (e.g. 'Trip Summary-Italy April 2026'). Also used as the filename." },
+        document_name: { type: "string", description: "Display name shown in the Vamoos app. ALWAYS use 'Trip Summary' — this is a fixed name for every trip, regardless of trip title." },
         html_content: { type: "string", description: "The full document written as HTML. Write a complete HTML document with <html>, <head> (including <style>), and <body> tags." },
       },
       required: ["reference_code", "vamoos_id", "departure_date", "return_date", "document_name", "html_content"],

@@ -126,7 +126,7 @@ export const handler = async (event) => {
       vamoos_id,
       departure_date: departure_date || "",
       return_date: return_date || "",
-      document_name: `Trip Summary-${trip_title || reference_code}`,
+      document_name: "Trip Summary",
       html_content: html,
     });
   } catch (e) {

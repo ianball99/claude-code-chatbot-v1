@@ -86,7 +86,7 @@ export default function TripPage() {
           (f) => f.is_folder && f.path?.includes("/documents/travel")
         );
         const savedDoc = (travelFolder?.children || []).findLast(
-          (d) => d.name?.startsWith("Trip Summary")
+          (d) => d.name === "Trip Summary"
         );
         const docUrl = savedDoc?.file?.https_url;
 
