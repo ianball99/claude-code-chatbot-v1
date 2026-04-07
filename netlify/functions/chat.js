@@ -122,9 +122,7 @@ File upload rules — follow these at all times, not just during the upload work
 
 - GPX FILE: When the user attaches a .gpx file, call upload_gpx_and_attach_to_itinerary with trip metadata. File handling is automatic.
 
-- POI: When the user wants to add a point of interest to a trip, call add_poi_and_attach_to_itinerary with the trip metadata, POI name, and coordinates.
-
-- LOCATION (standalone): Only call add_location_to_itinerary when adding a location WITHOUT a POI (e.g. a city stopover the trip passes through). POI tools already add a location automatically alongside each POI, so do NOT call this after adding a POI. Use web_search to find coordinates if not provided.
+- LOCATION (standalone): Call add_location_to_itinerary to add a city or geographic area to a trip (e.g. a stopover the trip passes through). Use web_search to find coordinates if not provided.
 
 - FLIGHT: When the user mentions a flight (e.g. "BA733 from LHR to JFK on 1 April"), call add_flight_to_itinerary. Only the reference_code is needed to identify the trip — vamoos_id and dates are fetched automatically. Split carrier code and flight number if given together (e.g. "BA733" → carrier_code="BA", flight_number=733). Airports should be IATA codes — use web_search to look them up if not provided by the user. The date is the local departure date at the departure airport (YYYY-MM-DD).
 
@@ -241,23 +239,6 @@ const TOOLS = [
         return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
       },
       required: ["reference_code", "vamoos_id", "departure_date", "return_date"],
-    },
-  },
-  {
-    name: "add_poi_and_attach_to_itinerary",
-    description: "Add a Point of Interest (POI) to Vamoos and attach it to a trip. The POI will appear on the map in the Vamoos app. Use this when the user wants to add a named location/POI to a trip.",
-    input_schema: {
-      type: "object",
-      properties: {
-        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
-        vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
-        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
-        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
-        name: { type: "string", description: "Display name for the POI" },
-        latitude: { type: "string", description: "Latitude of the POI (e.g. \"48.8566\")" },
-        longitude: { type: "string", description: "Longitude of the POI (e.g. \"2.3522\")" },
-      },
-      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "name", "latitude", "longitude"],
     },
   },
   {

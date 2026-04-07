@@ -131,7 +131,7 @@ export default function TripPage() {
     (toolName) => {
       const mutatingTools = [
         "update_itinerary", "add_flight_to_itinerary", "add_person_to_itinerary",
-        "add_location_to_itinerary", "add_poi_and_attach_to_itinerary",
+        "add_location_to_itinerary",
         "upload_background_image", "upload_document", "upload_gpx_and_attach_to_itinerary",
         "upload_created_html_itinerary_document",
       ];
