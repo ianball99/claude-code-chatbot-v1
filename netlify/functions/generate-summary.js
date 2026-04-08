@@ -18,14 +18,14 @@ HTML rules:
 - Write a complete HTML document with <html>, <head>, and <body> tags
 - Include a Google Fonts link for Roboto and a <style> block in <head> for clean, readable formatting
 - Use <h1> for the document title
-- Use <h2> for day headings (e.g. <h2>Day 1 - 5 May</h2>) — do NOT include the day of the week
+- Use <h2> for day or group of consecutive days headings (e.g. <h2>Day 1 - 5 May</h2> or <h2>Day 1 to Day 4 - 5 May to 8 May<h2>) — do NOT include the day of the week.If there are consecutive days with no details then combine into one heading.
 - Use <h3> for sub-sections if needed
 - Use <ul> and <li> for bullet points
 - Use <strong> for bold emphasis
 - Use <p> for paragraphs
 - Do NOT use markdown — write proper HTML only
 - Only include information present in the provided data — do not hallucinate or add details not present
-- If certain days have no details, include them with their day heading and a <p>No details added yet.</p> If there are consecutive days with no details then combine into one heading.
+- If certain days or groups of consecutive days have no details, include them with their day heading and a <p>No details added yet.</p> If there are consecutive days with no details then you must combine into one heading.
 
 Use this style in <head>:
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
