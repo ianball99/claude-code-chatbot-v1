@@ -19,7 +19,7 @@ Then create a day by day itinerary document as HTML and upload it.
 Do not hallucinate:
 Base your itinerary items ONLY on information provided by the user chat or uploads. Only include information you are 100% sure is correct.
 Add helpful details like flight times from flight numbers, addresses for hotels,restaurants,added locations, but only from web sources that you are 100% sure are correct.
-Never guess or invent a vamoos_id. Only use a vamoos_id that has been returned by a call to get_itinerary, list_itineraries, or create_itinerary, or that the user has explicitly provided. If you do not yet have the vamoos_id, call get_itinerary first.
+Base your itinerary items ONLY on confirmed information — do not invent booking references, addresses, or other details.
 
 Core behaviour:
 - Be warm, conversational, and professional.
@@ -57,8 +57,7 @@ Step 1 - Create a trip in Vamoos using the create_itinerary tool:
   - field3: location (optional)
 
 Step 2 - Call upload_created_html_itinerary_document with the following fields:
-  - reference_code and vamoos_id from the trip you just created
-  - departure_date and return_date
+  - reference_code from the trip you just created
   - document_name: ALWAYS use "Trip Summary" — this is a fixed name used for every trip regardless of title
   - html_content: the full itinerary written as a complete HTML document
 
@@ -102,7 +101,7 @@ Example structure (expand with actual content):
 </body>
 </html>
 
-Step 3 - If the user has attached an image to use as a background, call upload_background_image with the trip metadata: reference_code, vamoos_id, departure_date, return_date. Do NOT ask the user for a filename or try to read/encode the image — the file is handled automatically by the system.
+Step 3 - If the user has attached an image to use as a background, call upload_background_image with just the reference_code. Do NOT ask the user for a filename or try to read/encode the image — the file is handled automatically by the system.
 
 Step 4 - Confirm to the user that the trip has been created and all uploads are complete.
 
@@ -119,9 +118,9 @@ Never leave the HTML summary out of date after modifying trip data.
 
 File upload rules — follow these at all times, not just during the upload workflow:
 
-- BACKGROUND IMAGE: When the user attaches an image and wants it as a trip background, call upload_background_image with the trip metadata only (reference_code, vamoos_id, departure_date, return_date). You do NOT need to pass image data — the application picks up the attached file automatically when you call the tool. If you have the trip details, call the tool immediately. If not, ask for the reference code, call get_itinerary, then call upload_background_image. Never refuse or say you cannot process the image.
+- BACKGROUND IMAGE: When the user attaches an image and wants it as a trip background, call upload_background_image with just the reference_code. You do NOT need to pass image data — the application picks up the attached file automatically when you call the tool. If you do not yet know the reference code, ask for it first. Never refuse or say you cannot process the image.
 
-- GPX FILE: When the user attaches a .gpx file, call upload_gpx_and_attach_to_itinerary with trip metadata. File handling is automatic.
+- GPX FILE: When the user attaches a .gpx file, call upload_gpx_and_attach_to_itinerary with just the reference_code. File handling is automatic.
 
 - LOCATION (standalone): Call add_location_to_itinerary to add a city or geographic area to a trip (e.g. a stopover the trip passes through). Use web_search to find coordinates if not provided. If you cannot find 100% accurate coordinates tell the user and ask them to provide.Do not guess coordinates.
 
@@ -129,7 +128,7 @@ File upload rules — follow these at all times, not just during the upload work
 
 - PERSON: When the user wants to add a person (traveller/passenger) to a trip, call add_person_to_itinerary with the reference_code, name, and email. Only the reference_code is needed to identify the trip — other trip fields are fetched automatically. If email is not provided, ask for it before calling the tool.
 
-- DOCUMENT: When the user attaches a document to add to a trip, call upload_document with trip metadata and a document_name. File handling is automatic.`;
+- DOCUMENT: When the user attaches a document to add to a trip, call upload_document with the reference_code and a document_name. File handling is automatic.`;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -184,32 +183,28 @@ const TOOLS = [
   },
   {
     name: "update_itinerary",
-    description: "Update an existing Vamoos itinerary (also called a trip). Use when the user asks to update, edit, or modify a trip. Requires the vamoos_id which stays constant across updates.",
+    description: "Update an existing Vamoos itinerary (also called a trip). Use when the user asks to update, edit, or modify a trip. Only supply the fields you want to change — all others are preserved automatically.",
     input_schema: {
       type: "object",
       properties: {
         reference_code: { type: "string", description: "Reference code of the itinerary to update" },
-        vamoos_id: { type: "number", description: "The vamoos_id — stays constant across all updates" },
-        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
-        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
-        field1: { type: "string", description: "Destination / Event Title (optional)" },
-        field3: { type: "string", description: "Name / Location (optional)" },
+        departure_date: { type: "string", description: "New departure date (YYYY-MM-DD) — omit to keep existing" },
+        return_date: { type: "string", description: "New return date (YYYY-MM-DD) — omit to keep existing" },
+        field1: { type: "string", description: "Destination / Event Title — omit to keep existing" },
+        field3: { type: "string", description: "Name / Location — omit to keep existing" },
       },
-      required: ["reference_code", "vamoos_id", "departure_date", "return_date"],
+      required: ["reference_code"],
     },
   },
   {
     name: "upload_background_image",
-    description: "Upload a background image to a Vamoos itinerary. When you call this tool, the application automatically takes the image the user has attached and uploads it to Vamoos. You do not need to include or encode the image — only provide the trip metadata fields below. IMPORTANT: Do not attempt to pass image data to this tool. Simply call it with the trip metadata. The application automatically detects the user's attached image and handles the upload when this tool is called.",
+    description: "Upload a background image to a Vamoos itinerary. When you call this tool, the application automatically takes the image the user has attached and uploads it to Vamoos. You do not need to include or encode the image — only provide the reference_code. IMPORTANT: Do not attempt to pass image data to this tool. The application automatically detects the user's attached image and handles the upload when this tool is called.",
     input_schema: {
       type: "object",
       properties: {
         reference_code: { type: "string", description: "Reference code of the itinerary" },
-        vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
-        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
-        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
       },
-      required: ["reference_code", "vamoos_id", "departure_date", "return_date"],
+      required: ["reference_code"],
     },
   },
   {
@@ -219,13 +214,10 @@ const TOOLS = [
       type: "object",
       properties: {
         reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
-        vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
-        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
-        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
         document_name: { type: "string", description: "Display name shown in the Vamoos app. ALWAYS use 'Trip Summary' — this is a fixed name for every trip, regardless of trip title." },
         html_content: { type: "string", description: "The full document written as HTML. Write a complete HTML document with <html>, <head> (including <style>), and <body> tags." },
       },
-      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "document_name", "html_content"],
+      required: ["reference_code", "document_name", "html_content"],
     },
   },
   {
@@ -235,11 +227,8 @@ const TOOLS = [
       type: "object",
       properties: {
         reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
-        vamoos_id: { type: "number", description: "The vamoos_id of the itinerary" },
-        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
-        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
       },
-      required: ["reference_code", "vamoos_id", "departure_date", "return_date"],
+      required: ["reference_code"],
     },
   },
   {
@@ -294,15 +283,12 @@ const TOOLS = [
       type: "object",
       properties: {
         reference_code: { type: "string", description: "Reference code of the itinerary/trip" },
-        vamoos_id: { type: "number", description: "The vamoos_id of the itinerary/trip" },
-        departure_date: { type: "string", description: "Departure date (YYYY-MM-DD)" },
-        return_date: { type: "string", description: "Return date (YYYY-MM-DD)" },
         filename: { type: "string", description: "Filename including extension (e.g. itinerary.pdf)" },
         content_type: { type: "string", description: "MIME type (e.g. application/pdf)" },
         document_name: { type: "string", description: "Display name shown in the app (e.g. Travel Itinerary)" },
         html_content: { type: "string", description: "Full HTML string to convert to PDF. When provided the app generates the PDF client-side — no file attachment needed." },
       },
-      required: ["reference_code", "vamoos_id", "departure_date", "return_date", "document_name"],
+      required: ["reference_code", "document_name"],
     },
   },
 ];
