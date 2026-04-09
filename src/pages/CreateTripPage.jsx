@@ -94,7 +94,7 @@ function buildInitialHtml(title, departureDate, returnDate) {
 </html>`;
 }
 
-
+export default function CreateTripPage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [startDateInput, setStartDateInput] = useState("");
