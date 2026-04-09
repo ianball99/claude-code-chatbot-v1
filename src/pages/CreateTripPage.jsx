@@ -67,7 +67,34 @@ function generateRefCode() {
   );
 }
 
-export default function CreateTripPage() {
+function buildInitialHtml(title, departureDate, returnDate) {
+  const fmt = (iso) => {
+    try { return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); }
+    catch { return iso; }
+  };
+  const dateRange = departureDate && returnDate ? `${fmt(departureDate)} – ${fmt(returnDate)}` : "";
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${title}</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.6; margin: 40px; background: transparent; color: #fff; }
+    h1 { font-size: 20px; margin-bottom: 8px; }
+    h2 { font-size: 15px; margin-top: 24px; border-bottom: 1px solid #555; padding-bottom: 4px; }
+    p { margin: 0 0 8px; }
+  </style>
+</head>
+<body>
+  <h1>${title}</h1>
+  ${dateRange ? `<p>Travel dates: ${dateRange}</p>` : ""}
+  <h2>Itinerary</h2>
+  <p>No details added yet.</p>
+</body>
+</html>`;
+}
+
+
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [startDateInput, setStartDateInput] = useState("");
@@ -94,18 +121,12 @@ export default function CreateTripPage() {
 
     try {
       setLoadingStep("Creating trip...");
-      const createResult = await callMcpTool("create_itinerary", {
+      await callMcpTool("create_itinerary", {
         reference_code: refCode,
         departure_date: startDateIso,
         return_date: endDateIso,
         field1: title.trim(),
       });
-
-      let vamoosId = null;
-      try {
-        const parsed = JSON.parse(createResult);
-        vamoosId = parsed.vamoos_id ?? parsed.id ?? null;
-      } catch {}
 
       setLoadingStep("Adding details...");
       const [, imageResult] = await Promise.allSettled([
@@ -121,30 +142,29 @@ export default function CreateTripPage() {
         }).then((r) => r.json()),
       ]);
 
+      // Upload initial HTML summary stub — no Claude call needed, just title + dates
+      try {
+        await callMcpTool("upload_created_html_itinerary_document", {
+          reference_code: refCode,
+          document_name: "Trip Summary",
+          html_content: buildInitialHtml(title.trim(), startDateIso, endDateIso),
+        });
+      } catch (summaryErr) {
+        console.warn("Initial summary upload failed:", summaryErr.message);
+      }
+
       if (imageResult.status === "fulfilled" && imageResult.value?.imageData) {
-        if (!vamoosId) {
-          try {
-            const getResult = await callMcpTool("get_itinerary", { reference_code: refCode });
-            const getParsed = JSON.parse(getResult);
-            vamoosId = getParsed.vamoos_id ?? getParsed.id ?? null;
-          } catch {}
-        }
-        if (vamoosId) {
-          setLoadingStep("Uploading background...");
-          const { imageData, contentType, filename } = imageResult.value;
-          try {
-            await callMcpTool("upload_background_image", {
-              reference_code: refCode,
-              vamoos_id: vamoosId,
-              departure_date: startDateIso,
-              return_date: endDateIso,
-              file_data: imageData,
-              filename,
-              content_type: contentType,
-            });
-          } catch (bgErr) {
-            console.warn("Background upload failed:", bgErr.message);
-          }
+        setLoadingStep("Uploading background...");
+        const { imageData, contentType, filename } = imageResult.value;
+        try {
+          await callMcpTool("upload_background_image", {
+            reference_code: refCode,
+            file_data: imageData,
+            filename,
+            content_type: contentType,
+          });
+        } catch (bgErr) {
+          console.warn("Background upload failed:", bgErr.message);
         }
       }
 
