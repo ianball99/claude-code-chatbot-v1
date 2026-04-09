@@ -86,7 +86,7 @@ export default function TripPage() {
           (f) => f.is_folder && f.path?.includes("/documents/travel")
         );
         const savedDoc = (travelFolder?.children || []).findLast(
-          (d) => d.name?.startsWith("Trip Summary")
+          (d) => d.name === "Trip Summary"
         );
         const docUrl = savedDoc?.file?.https_url;
 
@@ -131,7 +131,7 @@ export default function TripPage() {
     (toolName) => {
       const mutatingTools = [
         "update_itinerary", "add_flight_to_itinerary", "add_person_to_itinerary",
-        "add_location_to_itinerary", "add_poi_and_attach_to_itinerary",
+        "add_location_to_itinerary",
         "upload_background_image", "upload_document", "upload_gpx_and_attach_to_itinerary",
         "upload_created_html_itinerary_document",
       ];

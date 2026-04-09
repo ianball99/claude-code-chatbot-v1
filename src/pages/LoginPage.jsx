@@ -127,7 +127,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col bg-[#3a3a3a]">
       {/* Logo */}
       <div className="flex flex-col items-center pt-16 pb-8">
-        <img src="/vamoos-logo-and-text-transparent.png" alt="Vamoos" className="h-20 w-auto" />
+        <img src="/vamoos-logo-and-text-transparent-white-v.png" alt="Vamoos" className="h-20 w-auto" />
       </div>
 
       {/* Step 1: Email */}

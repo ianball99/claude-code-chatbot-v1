@@ -53,7 +53,7 @@ export default function HomePage() {
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-4 border-b border-[#707070]">
           <div className="flex flex-col">
-            <img src="/vamoos-logo-and-text-transparent.png" alt="Vamoos" className="h-10 w-auto" />
+            <img src="/vamoos-logo-and-text-transparent-white-v.png" alt="Vamoos" className="h-10 w-auto" />
             {email && <div className="text-[11px] text-[#a0a0a0]">{email}</div>}
           </div>
         </div>
