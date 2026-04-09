@@ -280,9 +280,6 @@ export default function ChatPanel({
     const fd = new FormData();
     fd.append("file", blob, filename);
     fd.append("reference_id", inp.reference_code || "");
-    fd.append("vamoos_id", String(inp.vamoos_id || 0));
-    fd.append("departure_date", inp.departure_date || "");
-    fd.append("return_date", inp.return_date || "");
     fd.append("image_filename", filename);
     fd.append("image_content_type", contentType);
     if (name === "upload_document") {
