@@ -99,25 +99,6 @@ export default function TripPage() {
             .then((r) => { if (!r.ok) throw new Error("fetch-document failed"); return r.text(); })
             .then((html) => { if (html.trim().startsWith("<")) setSummaryHtml(html); })
             .catch(() => {});
-        } else {
-          // No saved summary — generate one silently in the background
-          setSummaryGenerating(true);
-          fetch("/.netlify/functions/generate-summary", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tripJson: result,
-              reference_code: decodedRef,
-              vamoos_id: meta.vamoos_id,
-              departure_date: meta.departure_date || "",
-              return_date: meta.return_date || "",
-              trip_title: resolvedTitle,
-            }),
-          })
-            .then((r) => r.json())
-            .then((data) => { if (data.html) setSummaryHtml(data.html); })
-            .catch(() => {})
-            .finally(() => setSummaryGenerating(false));
         }
 
         const formatted = await formatDetails(result);
