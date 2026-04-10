@@ -32,6 +32,13 @@ Core behaviour:
 - Extract relevant material from uploads or pasted material.
 - When the user mentions a date without specifying the year (e.g. "1st April", "1/4", "April 1st"), always assume the current calendar year. Never use a past year unless the user explicitly states one.
 
+Managing locations (chronological order):
+- When adding a city, airport, stopover or geographic area to a trip, call add_location_to_itinerary.
+- Locations must appear in travel order in Vamoos. Decide the correct chronological position from the trip context already provided to you in the [Context: ...] block: departure_date, return_date, the formatted trip details, the Trip Summary, and the current locations list (each entry may include a visit_datetime).
+- Always pass a \`position\` (zero-based index into the current locations array where the new entry should live) and a \`visit_datetime\` (full ISO YYYY-MM-DDTHH:mm:ss — when the traveller is at that location). Use flight and schedule times from the trip details/summary to set the time component so that multiple locations on the same day stay in the correct order (e.g. outbound airport 07:30 before arrival airport 11:15).
+- Example: existing [0: London Heathrow (2026-04-01T07:30:00), 1: Rome Fiumicino (2026-04-01T11:15:00)]. Adding a Paris CDG stopover landing 08:45 on the same day → position 1, visit_datetime "2026-04-01T08:45:00".
+- If context is genuinely insufficient to decide chronology, omit both \`position\` and \`visit_datetime\`; the tool will safely append.
+
 Interview flow - follow this structure:
 1. Trip basics: Destination(s), Travel dates
 
@@ -112,7 +119,7 @@ When the user asks you to add or change anything on an existing trip — flights
    - Use document_name: "Trip Summary" (fixed name, same for every trip regardless of title)
    - For days with details have a <h2> for each day. If consecutive days with no details then combine into one <h2>.
    - Include all current trip data (use the data returned by the Vamoos tool, or call get_itinerary first if you need the latest full data)
-  
+
 
 Never leave the HTML summary out of date after modifying trip data.
 
@@ -122,7 +129,7 @@ File upload rules — follow these at all times, not just during the upload work
 
 - GPX FILE: When the user attaches a .gpx file, call upload_gpx_and_attach_to_itinerary with just the reference_code. File handling is automatic.
 
-- LOCATION (standalone): Call add_location_to_itinerary to add a city or geographic area to a trip (e.g. a stopover the trip passes through). Use web_search to find coordinates if not provided. If you cannot find 100% accurate coordinates tell the user and ask them to provide.Do not guess coordinates.
+- LOCATION (standalone): Call add_location_to_itinerary to add a city or geographic area to a trip (e.g. a stopover the trip passes through). Use web_search to find coordinates if not provided. If you cannot find 100% accurate coordinates tell the user and ask them to provide.Do not guess coordinates. Always follow the "Managing locations (chronological order)" rules above — pass position and visit_datetime so new locations land in travel order.
 
 - FLIGHT: When the user mentions a flight (e.g. "BA733 from LHR to JFK on 1 April"), call add_flight_to_itinerary. Only the reference_code is needed to identify the trip — vamoos_id and dates are fetched automatically. Split carrier code and flight number if given together (e.g. "BA733" → carrier_code="BA", flight_number=733). Airports should be IATA codes — use web_search to look them up if not provided by the user. The date is the local departure date at the departure airport (YYYY-MM-DD).
 
@@ -233,7 +240,7 @@ const TOOLS = [
   },
   {
     name: "add_location_to_itinerary",
-    description: "Add a location to a Vamoos trip. Locations define geographic areas for the trip — any Vamoos POIs within the radius of a location will automatically appear for that trip. Locations also appear on the trip map in a separate tab from POIs. Only reference_code is needed to identify the trip. Existing locations are preserved. Use web_search to find coordinates if not provided.",
+    description: "Add a location to a Vamoos trip. Locations define geographic areas for the trip — any Vamoos POIs within the radius of a location will automatically appear for that trip. Locations also appear on the trip map in a separate tab from POIs. Only reference_code is needed to identify the trip. Existing locations are preserved. Use web_search to find coordinates if not provided. Always pass a chronologically correct position and visit_datetime — see the 'Managing locations' rules in the system prompt.",
     input_schema: {
       type: "object",
       properties: {
@@ -243,6 +250,8 @@ const TOOLS = [
         longitude: { type: "string", description: "Longitude (e.g. '12.4964')" },
         description: { type: "string", description: "Optional description shown in the app" },
         icon_id: { type: "number", description: "Optional icon ID" },
+        position: { type: "number", description: "Zero-based index at which to insert the new location in the existing locations array (from the current locations list in the context). Omit to append at the end. Values past the array length are clamped to append." },
+        visit_datetime: { type: "string", description: "Full ISO datetime (YYYY-MM-DDTHH:mm:ss) for when the traveller is at this location. Used to keep locations in chronological order even when several share a day. Stored client-side; not sent to Vamoos." },
       },
       required: ["reference_code", "name", "latitude", "longitude"],
     },
