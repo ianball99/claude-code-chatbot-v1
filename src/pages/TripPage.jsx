@@ -43,6 +43,30 @@ export default function TripPage() {
   const [summaryGenerating, setSummaryGenerating] = useState(false);
   const [tripTitle, setTripTitle] = useState(stateTitle);
   const [tripMeta, setTripMeta] = useState(null);
+  const [tripLocations, setTripLocations] = useState([]);
+
+  // Fetch the blob entry for this trip from the user's trip-index.
+  const fetchTripFromBlob = async (refCode) => {
+    const email = localStorage.getItem("vamoos_user_email") || "";
+    if (!email) return null;
+    try {
+      const res = await fetch("/.netlify/functions/trip-index", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get", email }),
+      });
+      const data = await res.json();
+      return (data.trips || []).find((t) => t.refCode === refCode) || null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Strip HTML tags for plain-text summary context.
+  const stripHtmlTags = (html) => {
+    if (!html) return "";
+    return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 4000);
+  };
 
   const formatDetails = async (rawJson) => {
     try {
@@ -82,6 +106,32 @@ export default function TripPage() {
         };
         setTripMeta(meta);
 
+        // Merge Vamoos locations with blob-stored visit_datetimes
+        const vamoosLocs = Array.isArray(parsed.locations) ? parsed.locations : [];
+        fetchTripFromBlob(decodedRef).then((blobTrip) => {
+          const blobLocs = blobTrip?.locations || [];
+          const merged = vamoosLocs.map((vl) => {
+            const match = blobLocs.find(
+              (bl) => bl.name === vl.name && bl.latitude === String(vl.latitude) && bl.longitude === String(vl.longitude)
+            );
+            return {
+              name: vl.name,
+              latitude: String(vl.latitude),
+              longitude: String(vl.longitude),
+              visit_datetime: match?.visit_datetime || null,
+            };
+          });
+          setTripLocations(merged);
+
+          // Persist vamoos_id to blob if not already there
+          if (blobTrip && !blobTrip.vamoos_id && parsed.vamoos_id) {
+            const email = localStorage.getItem("vamoos_user_email") || "";
+            if (email) {
+              registerTripForPerson(email, { ...blobTrip, vamoos_id: parsed.vamoos_id });
+            }
+          }
+        });
+
         const travelFolder = (parsed.documents?.all || []).find(
           (f) => f.is_folder && f.path?.includes("/documents/travel")
         );
@@ -109,7 +159,7 @@ export default function TripPage() {
   }, [decodedRef]);
 
   const handleTripMutated = useCallback(
-    (toolName) => {
+    (toolName, _result, input) => {
       const mutatingTools = [
         "update_itinerary", "add_flight_to_itinerary", "add_person_to_itinerary",
         "add_location_to_itinerary",
@@ -121,6 +171,31 @@ export default function TripPage() {
           .then(async (result) => {
             const formatted = await formatDetails(result);
             setDetailsContent(formatted);
+            // Sync blob for location adds — persist visit_datetime to blob
+            if (toolName === "add_location_to_itinerary" && input) {
+              const newLoc = {
+                name: input.name,
+                latitude: String(input.latitude),
+                longitude: String(input.longitude),
+                visit_datetime: input.visit_datetime || null,
+              };
+              const pos = input.position;
+              setTripLocations((prev) => {
+                const idx = (pos !== undefined && pos <= prev.length) ? pos : prev.length;
+                const updated = [...prev.slice(0, idx), newLoc, ...prev.slice(idx)];
+                // Persist to blob
+                const email = localStorage.getItem("vamoos_user_email") || "";
+                if (email) {
+                  fetchTripFromBlob(decodedRef).then((blobTrip) => {
+                    registerTripForPerson(email, {
+                      ...(blobTrip || { refCode: decodedRef }),
+                      locations: updated,
+                    });
+                  });
+                }
+                return updated;
+              });
+            }
             // Sync blob when fields shown on the home page may have changed
             if (toolName === "update_itinerary") {
               let parsed = {};
@@ -270,7 +345,13 @@ export default function TripPage() {
         {/* Bottom pane — chat */}
         <div className="overflow-hidden" style={{ height: `${100 - splitPosition}%` }}>
           <ChatPanel
-            initialSystemContext={`You are managing the Vamoos trip with reference code: ${decodedRef}. Always use this reference code when calling tools.`}
+            initialSystemContext={[
+              `You are managing the Vamoos trip with reference code: ${decodedRef}. Always use this reference code when calling tools.`,
+              tripMeta ? `Departure: ${tripMeta.departure_date || "unknown"}, Return: ${tripMeta.return_date || "unknown"}.` : "",
+              tripLocations.length > 0 ? `Current locations (in order): ${JSON.stringify(tripLocations)}` : "No locations added yet.",
+              detailsContent ? `Trip details:\n${detailsContent}` : "",
+              summaryHtml ? `Trip summary (text):\n${stripHtmlTags(summaryHtml)}` : "Trip summary: not yet generated.",
+            ].filter(Boolean).join("\n\n")}
             onHtmlGenerated={(html) => setSummaryHtml(html)}
             onTripMutated={handleTripMutated}
             onPersonAdded={handlePersonAdded}

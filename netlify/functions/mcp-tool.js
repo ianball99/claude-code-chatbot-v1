@@ -11,6 +11,22 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Fields that belong to the chatbot/client layer only and must NOT be forwarded
+// to the MCP server for a given tool. For example, `visit_datetime` on
+// add_location_to_itinerary is stored in Netlify Blobs client-side to order
+// locations chronologically — Vamoos's schema rejects it.
+const CLIENT_ONLY_FIELDS = {
+  add_location_to_itinerary: ["visit_datetime"],
+};
+
+function stripClientOnlyFields(toolName, toolInput) {
+  const toStrip = CLIENT_ONLY_FIELDS[toolName];
+  if (!toStrip || !toolInput || typeof toolInput !== "object") return toolInput;
+  const cleaned = { ...toolInput };
+  for (const field of toStrip) delete cleaned[field];
+  return cleaned;
+}
+
 export const handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers: CORS, body: "" };
@@ -36,8 +52,10 @@ export const handler = async (event) => {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "toolName required" }) };
   }
 
+  const forwardedInput = stripClientOnlyFields(toolName, toolInput || {});
+
   try {
-    const result = await callMcpTool(mcpUrl, toolName, toolInput || {});
+    const result = await callMcpTool(mcpUrl, toolName, forwardedInput);
     return {
       statusCode: 200,
       headers: { ...CORS, "Content-Type": "application/json" },
