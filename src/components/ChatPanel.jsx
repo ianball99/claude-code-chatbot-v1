@@ -4,6 +4,7 @@ import { Settings, Send } from "lucide-react";
 const CHAT_FN = "/.netlify/functions/chat";
 const WORKER_URL_KEY = "vamoos_worker_url";
 const DEFAULT_WORKER_URL = "https://vamoos-mcp-server.ianball99.workers.dev";
+const DEBUG_MODE_KEY = "vamoos_debug_mode";
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -96,7 +97,7 @@ function renderWithBold(text) {
   );
 }
 
-function Bubble({ msg }) {
+function Bubble({ msg, showToolCalls }) {
   const isUser = msg.role === "user";
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-1`}>
@@ -129,7 +130,7 @@ function Bubble({ msg }) {
             />
           ) : null
         )}
-        {msg.toolCalls?.map((tc, j) => (
+        {showToolCalls && msg.toolCalls?.map((tc, j) => (
           <ToolCallCard key={j} tc={tc} />
         ))}
         {msg.text && (
@@ -137,7 +138,7 @@ function Bubble({ msg }) {
             className="text-sm leading-relaxed whitespace-pre-wrap break-words"
             style={{
               color: isUser ? "#fff" : "rgba(255,255,255,0.88)",
-              marginTop: msg.toolCalls?.length ? 8 : 0,
+              marginTop: (showToolCalls && msg.toolCalls?.length) ? 8 : 0,
             }}
           >
             {renderWithBold(msg.text)}
@@ -148,7 +149,7 @@ function Bubble({ msg }) {
   );
 }
 
-function SettingsPanel({ workerUrl, onSave, onClose }) {
+function SettingsPanel({ workerUrl, onSave, onClose, debugMode, onDebugToggle }) {
   const [val, setVal] = useState(workerUrl);
   return (
     <div
@@ -160,6 +161,30 @@ function SettingsPanel({ workerUrl, onSave, onClose }) {
           Settings
           <button onClick={onClose} className="text-white/40 text-base bg-transparent border-none cursor-pointer">
             ✕
+          </button>
+        </div>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <div className="font-mono text-[10px] text-white/40 uppercase tracking-widest mb-0.5">
+              Mode
+            </div>
+            <div className="font-mono text-[10px] text-white/30">
+              {debugMode ? "Debug — tool calls shown" : "Standard — tool calls hidden"}
+            </div>
+          </div>
+          <button
+            onClick={() => onDebugToggle(!debugMode)}
+            className="relative w-10 h-5 rounded-full transition-colors shrink-0 border-none cursor-pointer"
+            style={{
+              background: debugMode ? "#ff7c46" : "rgba(255,255,255,0.12)",
+            }}
+          >
+            <span
+              className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
+              style={{
+                left: debugMode ? "22px" : "2px",
+              }}
+            />
           </button>
         </div>
         <div className="mb-4">
@@ -208,6 +233,9 @@ export default function ChatPanel({
   const [workerUrl, setWorkerUrl] = useState(
     () => localStorage.getItem(WORKER_URL_KEY) || DEFAULT_WORKER_URL
   );
+  const [debugMode, setDebugMode] = useState(
+    () => localStorage.getItem(DEBUG_MODE_KEY) === "true"
+  );
   const bottomRef = useRef(null);
   const taRef = useRef(null);
   const imagesRef = useRef([]);
@@ -219,6 +247,11 @@ export default function ChatPanel({
   const saveWorkerUrl = (url) => {
     setWorkerUrl(url);
     localStorage.setItem(WORKER_URL_KEY, url);
+  };
+
+  const saveDebugMode = (enabled) => {
+    setDebugMode(enabled);
+    localStorage.setItem(DEBUG_MODE_KEY, String(enabled));
   };
 
   const htmlToPdfBlob = (html) =>
@@ -533,6 +566,8 @@ export default function ChatPanel({
           workerUrl={workerUrl}
           onSave={saveWorkerUrl}
           onClose={() => setShowSettings(false)}
+          debugMode={debugMode}
+          onDebugToggle={saveDebugMode}
         />
       )}
 
@@ -561,9 +596,10 @@ export default function ChatPanel({
           </div>
         ) : (
           <>
-            {messages.map((msg, i) => (
-              <Bubble key={i} msg={msg} />
-            ))}
+            {messages.map((msg, i) => {
+              if (!debugMode && !msg.text && msg.toolCalls?.length) return null;
+              return <Bubble key={i} msg={msg} showToolCalls={debugMode} />;
+            })}
             {loading && (
               <div className="flex items-center gap-2 pl-10">
                 <ThinkingDots />
