@@ -119,6 +119,7 @@ When the user asks you to add or change anything on an existing trip — flights
    - Use document_name: "Trip Summary" (fixed name, same for every trip regardless of title)
    - For days with details have a <h2> for each day. If consecutive days with no details then combine into one <h2>.
    - Include all current trip data (use the data returned by the Vamoos tool, or call get_itinerary first if you need the latest full data)
+   - For locations that have a confirmed address, include the address in the relevant day's entry. Do not include addresses you are not 100% sure are correct.
 
 
 Never leave the HTML summary out of date after modifying trip data.
@@ -129,7 +130,7 @@ File upload rules — follow these at all times, not just during the upload work
 
 - GPX FILE: When the user attaches a .gpx file, call upload_gpx_and_attach_to_itinerary with just the reference_code. File handling is automatic.
 
-- LOCATION (standalone): Call add_location_to_itinerary to add a city or geographic area to a trip (e.g. a stopover the trip passes through). Use web_search to find coordinates if not provided. If you cannot find 100% accurate coordinates tell the user and ask them to provide.Do not guess coordinates. Always follow the "Managing locations (chronological order)" rules above — pass position and visit_datetime so new locations land in travel order.
+- LOCATION (standalone): Call add_location_to_itinerary to add a city or geographic area to a trip (e.g. a stopover the trip passes through). Use web_search to find coordinates if not provided. If you cannot find 100% accurate coordinates tell the user and ask them to provide.Do not guess coordinates. Always follow the "Managing locations (chronological order)" rules above — pass position and visit_datetime so new locations land in travel order. When adding a specific place (hotel, airport, restaurant, venue) rather than a general area (city, region), use web_search to find its address and include it in the location description field — but only if you are 100% confident the address is correct.
 
 - FLIGHT: When the user mentions a flight (e.g. "BA733 from LHR to JFK on 1 April"), call add_flight_to_itinerary. Only the reference_code is needed to identify the trip — vamoos_id and dates are fetched automatically. Split carrier code and flight number if given together (e.g. "BA733" → carrier_code="BA", flight_number=733). Airports should be IATA codes — use web_search to look them up if not provided by the user. The date is the local departure date at the departure airport (YYYY-MM-DD).
 
