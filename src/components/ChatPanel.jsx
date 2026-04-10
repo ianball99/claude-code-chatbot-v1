@@ -363,7 +363,7 @@ export default function ChatPanel({
       });
 
       pendingMcpCalls.forEach((tc, i) => {
-        onTripMutated?.(tc.name, results[i]);
+        onTripMutated?.(tc.name, results[i], tc.input);
         const ref = extractRefCode(tc.name, results[i]);
         if (ref) onRefCodeKnown?.(ref);
         if (tc.name === "upload_created_html_itinerary_document" && tc.input?.html_content) {
@@ -451,10 +451,12 @@ export default function ChatPanel({
     if (taRef.current) taRef.current.style.height = "auto";
 
     const contentParts = [];
-    const contextPrefix =
-      initialSystemContext && apiHistory.length === 0
-        ? `[Context: ${initialSystemContext}]\n\n`
-        : "";
+    // Inject the latest context on EVERY user turn so time-sensitive state
+    // (e.g. current locations with visit_datetimes) stays fresh for Claude.
+    // This accepts a small token overhead in return for accurate reasoning.
+    const contextPrefix = initialSystemContext
+      ? `[Context: ${initialSystemContext}]\n\n`
+      : "";
 
     images.forEach((img) => {
       if (img.isGpx) {
