@@ -162,7 +162,7 @@ export default function TripPage() {
     (toolName, _result, input) => {
       const mutatingTools = [
         "update_itinerary", "add_flight_to_itinerary", "add_person_to_itinerary",
-        "add_location_to_itinerary",
+        "add_location_to_itinerary", "add_venue_location_to_itinerary",
         "upload_background_image", "upload_document", "upload_gpx_and_attach_to_itinerary",
         "upload_created_html_itinerary_document",
       ];
@@ -171,14 +171,16 @@ export default function TripPage() {
           .then(async (result) => {
             const formatted = await formatDetails(result);
             setDetailsContent(formatted);
-            // Sync blob for location adds — persist visit_datetime to blob
-            if (toolName === "add_location_to_itinerary" && input) {
+            // Sync blob for location adds — persist visit_datetime to blob.
+            // Covers both plain locations and Connect venue locations.
+            if ((toolName === "add_location_to_itinerary" || toolName === "add_venue_location_to_itinerary") && input) {
               const newLoc = {
                 name: input.name,
                 latitude: String(input.latitude),
                 longitude: String(input.longitude),
                 visit_datetime: input.visit_datetime || null,
               };
+              if (input.connect_id) newLoc.connect_id = input.connect_id;
               const pos = input.position;
               setTripLocations((prev) => {
                 const idx = (pos !== undefined && pos <= prev.length) ? pos : prev.length;

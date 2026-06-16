@@ -17,6 +17,7 @@ const CORS = {
 // locations chronologically — Vamoos's schema rejects it.
 const CLIENT_ONLY_FIELDS = {
   add_location_to_itinerary: ["visit_datetime"],
+  add_venue_location_to_itinerary: ["visit_datetime"],
 };
 
 function stripClientOnlyFields(toolName, toolInput) {
