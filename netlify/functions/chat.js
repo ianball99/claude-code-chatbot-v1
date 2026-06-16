@@ -41,6 +41,18 @@ Managing locations (chronological order):
 - Example: existing [0: London Heathrow (2026-04-01T07:30:00), 1: Rome Fiumicino (2026-04-01T11:15:00)]. User says "we have a layover in Paris CDG, landing 08:45" → position 1, visit_datetime "2026-04-01T08:45:00" (time is KNOWN from the user's message).
 - NEVER fabricate a date or time. If in doubt, omit and let the tool append.
 
+Hotels & venues (Vamoos Connect venue database):
+- Whenever the user mentions a hotel or other accommodation/venue by name, look it up FIRST with find_venues — before any web_search. The venue database is the preferred source for a venue's address, coordinates, star rating and description.
+- Disambiguate: pass country (ISO-2) and, when you know the city/area, latitude+longitude (+radius). Common chains (e.g. "London Hilton") return many properties — never guess which one.
+  - Exactly one confident match: tell the user — "I found <name>, <stars> star, <address>. Use this one?" — and WAIT for confirmation before writing anything.
+  - Several plausible matches: list the top options (name, stars, address) and ask which.
+  - None: say so, then fall back to web_search under the normal "only if 100% sure" rules.
+- Only AFTER the user confirms a venue:
+  1. Use its address/stars/description to enrich the relevant day in the itinerary HTML (prefer these over web search).
+  2. Call add_venue_location_to_itinerary with name, latitude, longitude, connect_id and address taken straight from the find_venues result, plus a chronological position/visit_datetime.
+  3. Re-generate the "Trip Summary" HTML (per "Modifying an existing trip").
+- Use add_venue_location_to_itinerary (not add_location_to_itinerary) for Connect venues. Keep add_location_to_itinerary for non-venue places (cities, airports, regions). Never invent a connect_id — only use an id returned by find_venues.
+
 Interview flow - follow this structure:
 1. Trip basics: Destination(s), Travel dates
 
@@ -116,7 +128,7 @@ Step 4 - Confirm to the user that the trip has been created and all uploads are 
 
 Modifying an existing trip:
 When the user asks you to add or change anything on an existing trip — flights, accommodation, locations, activities, travellers, or any other data — always do both of the following:
-1. Call the relevant Vamoos tool(s) to make the change (e.g. add_flight_to_itinerary, add_location_to_itinerary, add_person_to_itinerary).
+1. Call the relevant Vamoos tool(s) to make the change (e.g. add_flight_to_itinerary, add_location_to_itinerary, add_venue_location_to_itinerary, add_person_to_itinerary).
 2. Immediately after, re-generate the complete day-by-day HTML itinerary and call upload_created_html_itinerary_document to replace the existing summary:
    - Use document_name: "Trip Summary" (fixed name, same for every trip regardless of title)
    - For days with details have a <h2> for each day. If consecutive days with no details then combine into one <h2>.
@@ -257,6 +269,44 @@ const TOOLS = [
         visit_datetime: { type: "string", description: "Full ISO datetime (YYYY-MM-DDTHH:mm:ss) for when the traveller is at this location. Used to keep locations in chronological order even when several share a day. Stored client-side; not sent to Vamoos." },
       },
       required: ["reference_code", "name", "latitude", "longitude"],
+    },
+  },
+  {
+    name: "find_venues",
+    description: "Search the Vamoos Connect venue database (hotels, B&Bs, villas, etc.) for a venue the user mentions by name. Returns matching venues with id, name, address, coordinates, star rating and a short description. PREFER this over web_search for hotel/venue details. Use country and (when known) latitude/longitude/radius to disambiguate — common chain names return many properties.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Venue name or free text (e.g. 'London Hilton')" },
+        country: { type: "string", description: "ISO 3166 two-letter country code (e.g. GB, US) to narrow results" },
+        latitude: { type: "number", description: "Latitude of the city/area to focus the search (use with longitude + radius)" },
+        longitude: { type: "number", description: "Longitude of the city/area to focus the search (use with latitude + radius)" },
+        radius: { type: "number", description: "Search radius in metres (10–50000). Requires latitude and longitude." },
+        classifications: {
+          type: "array",
+          items: { type: "string", enum: ["hotel", "hostel", "bed_and_breakfast", "villa", "non_accommodation"] },
+          description: "Accommodation types to include. Default to ['hotel'] for a hotel mention.",
+        },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "add_venue_location_to_itinerary",
+    description: "Add a Connect venue found via find_venues to a Vamoos trip as a map location, linked back to its venue record. Pass name, latitude, longitude, connect_id (the venue's id) and address straight from the find_venues result. Existing locations are preserved. Only call this for a venue the user has confirmed. Follow the chronological 'Managing locations' rules — set position and visit_datetime so it lands in travel order.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference_code: { type: "string", description: "Reference code (Passcode) of the itinerary" },
+        name: { type: "string", description: "Venue name (from find_venues 'name')" },
+        latitude: { type: "string", description: "Latitude (from find_venues 'latitude')" },
+        longitude: { type: "string", description: "Longitude (from find_venues 'longitude')" },
+        connect_id: { type: "string", description: "The venue's id from find_venues — never invent this" },
+        address: { type: "string", description: "Venue address (from find_venues 'address') — shown as the location description" },
+        position: { type: "number", description: "Zero-based insert index in the existing locations array. Omit to append." },
+        visit_datetime: { type: "string", description: "ISO datetime (YYYY-MM-DDTHH:mm:ss) when the traveller is at this venue. Stored client-side for chronological ordering; not sent to Vamoos." },
+      },
+      required: ["reference_code", "name", "latitude", "longitude", "connect_id"],
     },
   },
   {
