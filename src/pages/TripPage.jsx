@@ -14,6 +14,22 @@ async function callMcpTool(toolName, toolInput = {}) {
   return data.result;
 }
 
+// Format an ISO date (YYYY-MM-DD) as "Friday 26 June 2026".
+// The weekday is computed in code (exact) rather than left to the model to derive.
+// Construct the date from numeric parts at local midnight so there is no
+// timezone parsing ambiguity that could roll the day backwards/forwards.
+function formatDateWithWeekday(isoDate) {
+  if (!isoDate) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate).trim());
+  if (!m) return isoDate;
+  const [, y, mo, d] = m;
+  const dt = new Date(Number(y), Number(mo) - 1, Number(d));
+  if (isNaN(dt)) return isoDate;
+  return dt.toLocaleDateString("en-GB", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+}
+
 async function registerTripForPerson(email, trip) {
   try {
     await fetch("/.netlify/functions/trip-index", {
@@ -349,7 +365,7 @@ export default function TripPage() {
           <ChatPanel
             initialSystemContext={[
               `You are managing the Vamoos trip with reference code: ${decodedRef}. Always use this reference code when calling tools.`,
-              tripMeta ? `Departure: ${tripMeta.departure_date || "unknown"}, Return: ${tripMeta.return_date || "unknown"}.` : "",
+              tripMeta ? `Departure: ${tripMeta.departure_date ? `${formatDateWithWeekday(tripMeta.departure_date)} (${tripMeta.departure_date})` : "unknown"}, Return: ${tripMeta.return_date ? `${formatDateWithWeekday(tripMeta.return_date)} (${tripMeta.return_date})` : "unknown"}. The weekday shown for each date is authoritative — use it as-is.` : "",
               tripLocations.length > 0 ? `Current locations (in order): ${JSON.stringify(tripLocations)}` : "No locations added yet.",
               detailsContent ? `Trip details:\n${detailsContent}` : "",
               summaryHtml ? `Trip summary (text):\n${stripHtmlTags(summaryHtml)}` : "Trip summary: not yet generated.",
