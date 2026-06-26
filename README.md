@@ -1,4 +1,4 @@
-# VAMOOS Chatbot v2.3
+# VAMOOS Chatbot v2.4
 
 A React-based AI chatbot interface for managing [Vamoos](https://www.vamoos.com) travel itineraries. Built with React + Vite, deployed on Netlify with serverless functions.
 
@@ -192,6 +192,9 @@ Balances security (periodic re-verification confirms ongoing email ownership) wi
 ### OTP keyed by email; verification keyed by email:browserId
 Only one valid OTP can exist per email at a time, so a single email key is correct. Verification records are per-browser, so the composite key `email:browserId` captures the specific combination without risk of collision across devices.
 
+### Deterministic day-of-week for trip dates
+Claude derived the day of the week directly from a date (e.g. calling 26 June 2026 a Thursday when it is a Friday) — date-to-weekday arithmetic that LLMs do unreliably. Because the validated trip dates are already held in the client as full ISO strings, `TripPage` computes each weekday in code via `Intl`/`toLocaleDateString` (`formatDateWithWeekday`) and injects it into the chat context (e.g. `Friday 26 June 2026 (2026-06-26)`). The system prompt in `chat.js` instructs the model to treat the supplied weekdays as authoritative, never compute a weekday itself, resolve a missing year from the trip's departure/return dates, and derive any in-trip weekday by counting forward from the known departure weekday. The ISO date is kept alongside the human-readable form so tool calls still receive a machine-readable value. To avoid timezone roll-over, the date is built from numeric parts at local midnight rather than parsed from a string.
+
 ## Colour Palette
 
 | Token | Value | Usage |
@@ -213,6 +216,12 @@ Only one valid OTP can exist per email at a time, so a single email key is corre
 | `browser-verifications` | `encodeURIComponent(email):encodeURIComponent(browserId)` | `{ verifiedAt }` | Browser verification records (7-day validity) |
 
 ## Version History
+
+### v2.4 (2026-06-26)
+- Fixed incorrect day-of-week for trip dates (e.g. 26 June 2026 reported as Thursday instead of Friday)
+- `TripPage` now computes weekdays in code (`formatDateWithWeekday`) and injects them into the chat context alongside the ISO date
+- `chat.js` system prompt updated: supplied weekdays are authoritative, the model must not compute weekdays itself, and missing years resolve from the trip's departure/return dates
+- Weekday derived at local midnight from numeric date parts to avoid timezone roll-over
 
 ### v2.3 (2026-04-01)
 - Real email OTP verification per browser via Resend API
